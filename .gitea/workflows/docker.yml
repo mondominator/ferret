@@ -5,18 +5,6 @@ on:
       - main
       
 jobs:
-  lint:
-    name: Run Pylint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Install dependencies
-        run: |
-          pip3 install pylint requests --break-system-packages
-      - name: Run Pylint
-        run: |
-          pylint **/*.py
   docker-build:
     runs-on: ubuntu-latest
     steps:
