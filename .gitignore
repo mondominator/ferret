@@ -1,6 +1,7 @@
 **.env*
 *.prof
-tautulli.*
+tautulli.db
+tautulli.db-*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
