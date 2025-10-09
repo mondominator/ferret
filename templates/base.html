@@ -8,19 +8,23 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🦦 Ferret Dashboard</h1>
-            <p class="subtitle">Media Server Sync Tool</p>
-        </header>
+    <header class="top-bar">
+        <div class="top-bar-content">
+            <div class="brand">
+                <h1>🦦 Ferret</h1>
+                <span class="subtitle">Media Server Sync</span>
+            </div>
+            <div class="top-bar-nav">
+                <a href="/" class="nav-link">Dashboard</a>
+                <a href="/settings" class="nav-link">Settings</a>
+            </div>
+        </div>
+    </header>
 
+    <div class="container">
         <main>
             {% block content %}{% endblock %}
         </main>
-
-        <footer>
-            <p>Ferret v1.0.0 | <a href="https://github.com/anthropics/claude-code" target="_blank">Built with Claude Code</a></p>
-        </footer>
     </div>
 
     {% block scripts %}{% endblock %}

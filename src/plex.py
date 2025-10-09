@@ -283,15 +283,17 @@ class Plex:
     def info(self) -> str:
         return f"Plex {self.plex.friendlyName}: {self.plex.version}"
 
-    def backfill_all_users(self) -> None:
+    def backfill_all_users(self) -> int:
         """
         Backfill Tautulli history for all Plex users.
         Should be called once during initialization or first sync.
+        Returns the total number of items backfilled.
         """
         if not self.tautulli_logger or not self.tautulli_logger.enabled:
-            return
+            return 0
 
         logger.info("Plex: Starting Tautulli backfill for all users")
+        total_count = 0
 
         for user in self.users:
             try:
@@ -306,18 +308,20 @@ class Plex:
                         continue
 
                 libraries = user_plex.library.sections()
-                self.tautulli_logger.backfill_user_watched(
+                count = self.tautulli_logger.backfill_user_watched(
                     user=user,
                     user_plex=user_plex,
                     libraries=libraries,
                     server_name=self.plex.friendlyName,
                     machine_id=self.plex.machineIdentifier,
                 )
+                total_count += count
 
             except Exception as e:
                 logger.error(f"Plex: Failed to backfill Tautulli for {user.title}: {e}")
 
-        logger.info("Plex: Completed Tautulli backfill for all users")
+        logger.info(f"Plex: Completed Tautulli backfill for all users - {total_count} items backfilled")
+        return total_count
 
     def get_users(self) -> list[MyPlexUser | MyPlexAccount]:
         try:

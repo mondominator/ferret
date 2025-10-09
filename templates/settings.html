@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1>Settings</h1>
+        <p class="subtitle">Configure your media servers and sync options</p>
+    </div>
+
+    <div class="settings-sections">
+        <!-- Plex Settings -->
+        <div class="settings-section">
+            <h2>Plex Server</h2>
+            <div class="form-group">
+                <label for="plex_baseurl">Server URL</label>
+                <input type="text" id="plex_baseurl" name="plex_baseurl" placeholder="http://192.168.1.100:32400" value="{{ config.get('PLEX_BASEURL', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="plex_token">API Token</label>
+                <input type="password" id="plex_token" name="plex_token" placeholder="Your Plex token" value="{{ config.get('PLEX_TOKEN', '') }}">
+            </div>
+        </div>
+
+        <!-- Jellyfin Settings -->
+        <div class="settings-section">
+            <h2>Jellyfin Server</h2>
+            <div class="form-group">
+                <label for="jellyfin_baseurl">Server URL</label>
+                <input type="text" id="jellyfin_baseurl" name="jellyfin_baseurl" placeholder="http://192.168.1.100:8096" value="{{ config.get('JELLYFIN_BASEURL', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="jellyfin_token">API Token</label>
+                <input type="password" id="jellyfin_token" name="jellyfin_token" placeholder="Your Jellyfin token" value="{{ config.get('JELLYFIN_TOKEN', '') }}">
+            </div>
+        </div>
+
+        <!-- Emby Settings -->
+        <div class="settings-section">
+            <h2>Emby Server</h2>
+            <div class="form-group">
+                <label for="emby_baseurl">Server URL</label>
+                <input type="text" id="emby_baseurl" name="emby_baseurl" placeholder="http://192.168.1.100:8920" value="{{ config.get('EMBY_BASEURL', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="emby_token">API Token</label>
+                <input type="password" id="emby_token" name="emby_token" placeholder="Your Emby token" value="{{ config.get('EMBY_TOKEN', '') }}">
+            </div>
+        </div>
+
+        <!-- General Settings -->
+        <div class="settings-section">
+            <h2>General Settings</h2>
+            <div class="form-group">
+                <label for="sleep_duration">Sync Interval (seconds)</label>
+                <input type="number" id="sleep_duration" name="sleep_duration" placeholder="3600" value="{{ config.get('SLEEP_DURATION', '3600') }}">
+            </div>
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="dryrun" name="dryrun" {% if config.get('DRYRUN', 'False') == 'True' %}checked{% endif %}>
+                    <span>Dry Run Mode (test without making changes)</span>
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="debug_level">Log Level</label>
+                <select id="debug_level" name="debug_level">
+                    <option value="INFO" {% if config.get('DEBUG_LEVEL', 'INFO') == 'INFO' %}selected{% endif %}>INFO</option>
+                    <option value="DEBUG" {% if config.get('DEBUG_LEVEL', 'INFO') == 'DEBUG' %}selected{% endif %}>DEBUG</option>
+                    <option value="TRACE" {% if config.get('DEBUG_LEVEL', 'INFO') == 'TRACE' %}selected{% endif %}>TRACE</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="user_mapping">User Mapping (JSON format)</label>
+                <textarea id="user_mapping" name="user_mapping" rows="4" placeholder='{"server1_user":"server2_user", "john":"john.doe"}'>{%- if config.get('USER_MAPPING') -%}{{ config.get('USER_MAPPING') }}{%- endif -%}</textarea>
+                <small class="form-help">Map usernames between servers. Format: {"source":"destination"}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-actions">
+        <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/'">Cancel</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function saveSettings() {
+        const formData = {
+            PLEX_BASEURL: document.getElementById('plex_baseurl').value,
+            PLEX_TOKEN: document.getElementById('plex_token').value,
+            JELLYFIN_BASEURL: document.getElementById('jellyfin_baseurl').value,
+            JELLYFIN_TOKEN: document.getElementById('jellyfin_token').value,
+            EMBY_BASEURL: document.getElementById('emby_baseurl').value,
+            EMBY_TOKEN: document.getElementById('emby_token').value,
+            SLEEP_DURATION: document.getElementById('sleep_duration').value,
+            DRYRUN: document.getElementById('dryrun').checked ? 'True' : 'False',
+            DEBUG_LEVEL: document.getElementById('debug_level').value,
+            USER_MAPPING: document.getElementById('user_mapping').value
+        };
+
+        try {
+            const response = await fetch('/api/settings/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('Settings saved successfully! Container restart required for changes to take effect.');
+                window.location.href = '/';
+            } else {
+                alert('Failed to save settings: ' + result.message);
+            }
+        } catch (error) {
+            alert('Error saving settings: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}

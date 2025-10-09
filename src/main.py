@@ -24,11 +24,24 @@ from src.black_white import setup_black_white_lists
 from src.connection import generate_server_connections
 
 
+# Track if logger has been configured when preserving handlers
+_logger_configured = False
+
 def configure_logger(log_file: str = "log.log", debug_level: str = "INFO", preserve_handlers: bool = False) -> None:
+    global _logger_configured
+
     # Remove default logger to configure our own
     # If preserve_handlers is True, keep existing handlers (for web dashboard)
     if not preserve_handlers:
         logger.remove()
+        _logger_configured = False
+    elif _logger_configured:
+        # Already configured with preserved handlers, skip to avoid duplicates
+        return
+
+    # Log what level we're configuring (only first time)
+    if not _logger_configured:
+        print(f"Configuring logger with level: {debug_level}, preserve_handlers: {preserve_handlers}")
 
     # Choose log level based on environment
     # If in debug mode with a "debug" level, use DEBUG; otherwise, default to INFO.
@@ -42,6 +55,9 @@ def configure_logger(log_file: str = "log.log", debug_level: str = "INFO", prese
     # Add a sink for file logging and the console.
     logger.add(log_file, level=debug_level, mode="w")
     logger.add(sys.stdout, level=debug_level)
+
+    if preserve_handlers:
+        _logger_configured = True
 
 
 def should_sync_server(
@@ -122,6 +138,16 @@ def should_sync_server(
 
 
 def main_loop(env) -> None:
+    # Import web state if available
+    try:
+        from src.web.state import app_state
+        web_dashboard_enabled = True
+    except ImportError:
+        web_dashboard_enabled = False
+
+    if web_dashboard_enabled:
+        app_state.set_syncing(True, "Initializing sync")
+
     dryrun = str_to_bool(get_env_value(env, "DRYRUN", "False"))
     logger.info(f"Dryrun: {dryrun}")
 
@@ -195,6 +221,12 @@ def main_loop(env) -> None:
             logger.info(f"Server 1: {type(server_1)}: {server_1.info()}")
             logger.info(f"Server 2: {type(server_2)}: {server_2.info()}")
 
+            if web_dashboard_enabled:
+                # Get short server names for display
+                s1_name = server_1.info(name_only=True) if hasattr(server_1, 'info') and isinstance(server_1, (Jellyfin, Emby)) else server_1.plex.friendlyName
+                s2_name = server_2.info(name_only=True) if hasattr(server_2, 'info') and isinstance(server_2, (Jellyfin, Emby)) else server_2.plex.friendlyName
+                app_state.set_syncing(True, f"{s1_name} ↔ {s2_name}")
+
             # Create users list
             logger.info("Creating users list")
             server_1_users, server_2_users = setup_users(
@@ -244,6 +276,8 @@ def main_loop(env) -> None:
 
             if should_sync_server(env, server_2, server_1):
                 logger.info(f"Syncing {server_2.info()} -> {server_1.info()}")
+                if web_dashboard_enabled:
+                    app_state.set_syncing(True, f"{s2_name} → {s1_name}")
 
                 # Add server_2_watched_filtered to server_1_watched that way the stored version isn't stale for the next server
                 if not dryrun:
@@ -263,12 +297,19 @@ def main_loop(env) -> None:
 
             if should_sync_server(env, server_1, server_2):
                 logger.info(f"Syncing {server_1.info()} -> {server_2.info()}")
+                if web_dashboard_enabled:
+                    app_state.set_syncing(True, f"{s1_name} → {s2_name}")
+
                 server_2.update_watched(
                     server_1_watched_filtered,
                     user_mapping,
                     library_mapping,
                     dryrun,
                 )
+
+    # Mark sync as complete
+    if web_dashboard_enabled:
+        app_state.set_syncing(False)
 
 
 @logger.catch
@@ -288,6 +329,15 @@ def main() -> None:
     # Check if running with web dashboard
     preserve_web_handlers = os.getenv('FERRET_WEB_DASHBOARD') == '1'
 
+    # Import web state if available
+    web_dashboard_enabled = False
+    if preserve_web_handlers:
+        try:
+            from src.web.state import app_state
+            web_dashboard_enabled = True
+        except ImportError:
+            pass
+
     while True:
         try:
             start = perf_counter()
@@ -305,7 +355,20 @@ def main() -> None:
                 break
 
             logger.info(f"Looping in {sleep_duration}")
-            sleep(sleep_duration)
+
+            # Check for manual sync requests from web dashboard
+            if web_dashboard_enabled:
+                # Sleep in small intervals to check for manual sync requests
+                elapsed = 0
+                while elapsed < sleep_duration:
+                    if app_state.manual_sync_requested:
+                        logger.info("Web: Manual sync request detected, starting sync now")
+                        app_state.clear_manual_sync_request()
+                        break
+                    sleep(1)
+                    elapsed += 1
+            else:
+                sleep(sleep_duration)
 
         except Exception as error:
             if isinstance(error, list):

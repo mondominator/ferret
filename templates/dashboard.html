@@ -2,57 +2,70 @@
 
 {% block content %}
 <div class="dashboard">
-    <!-- Sync Status Card -->
-    {% include "partials/status_card.html" %}
-
-    <!-- Servers Card -->
-    <div class="card">
-        <h2>Connected Servers</h2>
-        <div class="servers-list">
-            {% if status.servers %}
-                {% for name, info in status.servers.items() %}
-                <div class="server-item">
-                    <div class="server-info">
-                        <span class="server-name">{{ name }}</span>
-                        <span class="server-type">{{ info.type }}</span>
-                    </div>
-                    <div class="server-status">
-                        <span class="status-badge {{ info.status }}">{{ info.status }}</span>
-                        {% if info.version %}
-                        <span class="server-version">v{{ info.version }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p class="no-data">No servers connected</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Backfill Status Card -->
-    <div class="card">
-        <h2>Tautulli Backfill</h2>
-        <div class="backfill-status">
-            {% if status.backfill_complete %}
-            <span class="status-badge success">Complete</span>
-            <p>{{ status.backfill_count }} historical items added to Tautulli</p>
-            {% else %}
-            <span class="status-badge pending">Pending</span>
-            <p>Backfill will run on next sync</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Live Logs Card -->
+    <!-- Live Logs Card - Now at top -->
     <div class="card logs-card">
-        <h2>Live Logs</h2>
+        <div class="logs-header" hx-get="/api/status/header" hx-trigger="every 2s" hx-swap="outerHTML">
+            <div class="header-left">
+                <h2>Live Logs</h2>
+                <!-- Sync Status Badge -->
+                <div class="sync-status-inline">
+                    {% if status.is_syncing %}
+                    <span class="status-badge syncing">Syncing</span>
+                    {% if status.current_operation %}
+                    <span class="operation-text">{{ status.current_operation }}</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="status-badge idle">Idle</span>
+                    {% endif %}
+                </div>
+            </div>
+            <!-- Server Status, Tautulli, Last Sync, and Sync Button -->
+            <div class="header-badges">
+                <div class="servers-inline">
+                    {% if status.servers %}
+                        {% for name, info in status.servers.items() %}
+                        <span class="server-badge">
+                            <span class="server-name">{{ name }}</span>
+                            <span class="server-type-small">{{ info.type }}</span>
+                            <span class="status-dot {{ info.status }}"></span>
+                        </span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <!-- Tautulli Badge -->
+                <span class="server-badge tautulli-badge">
+                    <span class="server-name">Tautulli</span>
+                    {% if status.backfill_complete %}
+                    <span class="server-type-small">{{ status.backfill_count }} backfilled</span>
+                    <span class="status-dot connected"></span>
+                    {% else %}
+                    <span class="server-type-small">pending</span>
+                    <span class="status-dot pending"></span>
+                    {% endif %}
+                </span>
+                <!-- Last Sync Info -->
+                <span class="server-badge last-sync-badge">
+                    <span class="server-name">Last Sync</span>
+                    <span class="server-type-small">
+                        {% if status.last_sync_time %}
+                        {{ status.last_sync_time }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </span>
+                </span>
+                <!-- Manual Sync Button -->
+                <button
+                    class="btn btn-primary btn-compact"
+                    hx-post="/api/sync/trigger"
+                    hx-swap="none"
+                    {% if status.is_syncing %}disabled{% endif %}>
+                    Sync Now
+                </button>
+            </div>
+        </div>
         <div id="logs-container" class="logs-container">
             <div id="logs-content" class="logs-content"></div>
-        </div>
-        <div class="logs-controls">
-            <button class="btn btn-secondary" onclick="clearLogs()">Clear</button>
-            <button class="btn btn-secondary" onclick="scrollToBottom()">Scroll to Bottom</button>
         </div>
     </div>
 </div>
@@ -76,7 +89,27 @@
             const logsContent = document.getElementById('logs-content');
             const logLine = document.createElement('div');
             logLine.className = 'log-line';
-            logLine.textContent = event.data;
+
+            const logText = event.data;
+
+            // Add log level class for colorization
+            if (logText.includes('| WARNING  |')) {
+                logLine.classList.add('log-warning');
+                logLine.textContent = logText;
+            } else if (logText.includes('| ERROR    |')) {
+                logLine.classList.add('log-error');
+                logLine.textContent = logText;
+            } else if (logText.includes('| DEBUG    |')) {
+                logLine.classList.add('log-debug');
+                logLine.textContent = logText;
+            } else if (logText.includes('| TRACE    |')) {
+                logLine.classList.add('log-trace');
+                logLine.textContent = logText;
+            } else {
+                // For INFO logs, just display as plain text (gray)
+                logLine.textContent = logText;
+            }
+
             logsContent.appendChild(logLine);
 
             // Auto-scroll if enabled

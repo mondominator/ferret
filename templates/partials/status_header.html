@@ -1,0 +1,60 @@
+<div class="logs-header" hx-get="/api/status/header" hx-trigger="every 2s" hx-swap="outerHTML">
+    <div class="header-left">
+        <h2>Live Logs</h2>
+        <!-- Sync Status Badge -->
+        <div class="sync-status-inline">
+            {% if status.is_syncing %}
+            <span class="status-badge syncing">Syncing</span>
+            {% if status.current_operation %}
+            <span class="operation-text">{{ status.current_operation }}</span>
+            {% endif %}
+            {% else %}
+            <span class="status-badge idle">Idle</span>
+            {% endif %}
+        </div>
+    </div>
+    <!-- Server Status, Tautulli, Last Sync, and Sync Button -->
+    <div class="header-badges">
+        <div class="servers-inline">
+            {% if status.servers %}
+                {% for name, info in status.servers.items() %}
+                <span class="server-badge">
+                    <span class="server-name">{{ name }}</span>
+                    <span class="server-type-small">{{ info.type }}</span>
+                    <span class="status-dot {{ info.status }}"></span>
+                </span>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <!-- Tautulli Badge -->
+        <span class="server-badge tautulli-badge">
+            <span class="server-name">Tautulli</span>
+            {% if status.backfill_complete %}
+            <span class="server-type-small">{{ status.backfill_count }} backfilled</span>
+            <span class="status-dot connected"></span>
+            {% else %}
+            <span class="server-type-small">pending</span>
+            <span class="status-dot pending"></span>
+            {% endif %}
+        </span>
+        <!-- Last Sync Info -->
+        <span class="server-badge last-sync-badge">
+            <span class="server-name">Last Sync</span>
+            <span class="server-type-small">
+                {% if status.last_sync_time %}
+                {{ status.last_sync_time }}
+                {% else %}
+                Never
+                {% endif %}
+            </span>
+        </span>
+        <!-- Manual Sync Button -->
+        <button
+            class="btn btn-primary btn-compact"
+            hx-post="/api/sync/trigger"
+            hx-swap="none"
+            {% if status.is_syncing %}disabled{% endif %}>
+            Sync Now
+        </button>
+    </div>
+</div>

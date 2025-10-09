@@ -176,8 +176,21 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
 
     # Now backfill Tautulli for all Plex servers (after all connections are established)
     logger.info("All servers connected. Starting Tautulli backfill for Plex servers...")
+    total_backfill_count = 0
+    backfill_ran = False
+
     for server in servers:
         if isinstance(server, Plex):
-            server.backfill_all_users()
+            if WEB_DASHBOARD_ENABLED:
+                app_state.set_syncing(True, "Backfilling Tautulli")
+            count = server.backfill_all_users()
+            backfill_ran = True
+            if count and isinstance(count, int):
+                total_backfill_count += count
+
+    # Mark backfill as complete if it ran (even if no items were added)
+    if WEB_DASHBOARD_ENABLED and backfill_ran:
+        app_state.set_backfill_status(complete=True, count=total_backfill_count)
+        logger.info(f"Web: Backfill complete - {total_backfill_count} items added to Tautulli")
 
     return servers
