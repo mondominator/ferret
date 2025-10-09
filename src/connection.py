@@ -78,6 +78,9 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
 
             logger.debug(f"Plex Server {i} info: {server.info()}")
 
+            # Backfill Tautulli history for all users on this server
+            server.backfill_all_users()
+
             servers.append(server)
 
     if plex_username_str and plex_password_str and plex_servername_str:
@@ -104,6 +107,10 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
             )
 
             logger.debug(f"Plex Server {i} info: {server.info()}")
+
+            # Backfill Tautulli history for all users on this server
+            server.backfill_all_users()
+
             servers.append(server)
 
     jellyfin_baseurl = get_env_value(env, "JELLYFIN_BASEURL", None)
