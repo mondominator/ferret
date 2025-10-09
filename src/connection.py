@@ -113,8 +113,7 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
                     version=server.plex.version
                 )
 
-            # Backfill Tautulli history for all users on this server
-            server.backfill_all_users()
+            # Backfill will be done after all servers are connected
 
             servers.append(server)
 
@@ -153,8 +152,7 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
                     version=server.plex.version
                 )
 
-            # Backfill Tautulli history for all users on this server
-            server.backfill_all_users()
+            # Backfill will be done after all servers are connected
 
             servers.append(server)
 
@@ -175,5 +173,11 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
         emby_servers = jellyfin_emby_server_connection(env, emby_baseurl, emby_token, "emby")
         logger.info(f"Connected to {len(emby_servers)} Emby server(s)")
         servers.extend(emby_servers)
+
+    # Now backfill Tautulli for all Plex servers (after all connections are established)
+    logger.info("All servers connected. Starting Tautulli backfill for Plex servers...")
+    for server in servers:
+        if isinstance(server, Plex):
+            server.backfill_all_users()
 
     return servers
