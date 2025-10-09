@@ -731,7 +731,7 @@ class Plex:
                         user=user,
                         user_plex=user_plex,
                         libraries=libraries,
-                        server_name=self.plex_name,
+                        server_name=self.plex.friendlyName,
                         machine_id=self.plex.machineIdentifier,
                     )
                 except Exception as e:
