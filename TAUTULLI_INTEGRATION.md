@@ -1,6 +1,6 @@
 # Tautulli Integration
 
-JellyPlex-Watched can now write playback history directly to Tautulli's database, allowing synced content to appear in Tautulli's history as if it was actually played.
+Ferret can write playback history directly to Tautulli's database, allowing synced content to appear in Tautulli's history as if it was actually played.
 
 ## Why This Feature?
 
@@ -31,7 +31,7 @@ The database file is called `tautulli.db` and is typically located at:
 - Windows: `%APPDATA%\Tautulli\tautulli.db`
 - macOS: `~/Library/Application Support/Tautulli/tautulli.db`
 
-### 2. Configure JellyPlex-Watched
+### 2. Configure Ferret
 
 **Option A: Docker** (Recommended)
 
@@ -40,8 +40,8 @@ Add a volume mount and environment variable:
 ```yaml
 # docker-compose.yml
 services:
-  jellyplex-watched:
-    image: luigi311/jellyplex-watched:latest
+  ferret:
+    image: git.bitstorm.ca/global_dynamics/ferret:latest
     volumes:
       - ./config/.env:/app/.env
       - /path/to/tautulli/config:/tautulli-data:ro  # Read-only mount
@@ -55,7 +55,7 @@ docker run -d \
   -v "$(pwd)/.env:/app/.env" \
   -v "/path/to/tautulli/config:/tautulli-data:ro" \
   -e TAUTULLI_DB_PATH=/tautulli-data/tautulli.db \
-  luigi311/jellyplex-watched:latest
+  git.bitstorm.ca/global_dynamics/ferret:latest
 ```
 
 **Option B: Bare Metal**
@@ -84,8 +84,8 @@ After a sync:
 1. Open Tautulli web interface
 2. Go to **History** tab
 3. Look for entries with:
-   - Player: `jellyplex-watched`
-   - Platform: `Jellyplex-Watched`
+   - Player: `ferret`
+   - Platform: `Ferret`
    - IP Address: `sync`
 
 ## Important Notes
@@ -96,7 +96,7 @@ After a sync:
 - Use `:rw` instead of `:ro` if you get permission errors
 - Make sure file permissions allow the container user to write
 
-**Bare Metal:** The user running JellyPlex-Watched needs write access to `tautulli.db`
+**Bare Metal:** The user running Ferret needs write access to `tautulli.db`
 
 ### Database Safety
 
@@ -109,7 +109,7 @@ After a sync:
 
 - History entries are created with the current timestamp (not the original watch date from the source server)
 - The "IP Address" field shows `sync` to distinguish from real playback
-- Player is identified as `jellyplex-watched`
+- Player is identified as `ferret`
 
 ## Troubleshooting
 
@@ -149,4 +149,4 @@ To disable, simply comment out or remove:
 # TAUTULLI_DB_PATH = ""
 ```
 
-JellyPlex-Watched will continue to work normally, just without Tautulli history logging.
+Ferret will continue to work normally, just without Tautulli history logging.

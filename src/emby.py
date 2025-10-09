@@ -7,10 +7,10 @@ class Emby(JellyfinEmby):
     def __init__(self, env, base_url: str, token: str) -> None:
         authorization = (
             "Emby , "
-            'Client="JellyPlex-Watched", '
+            'Client="Ferret", '
             'Device="script", '
             'DeviceId="script", '
-            'Version="6.0.2"'
+            'Version="1.0.0"'
         )
         headers = {
             "Accept": "application/json",

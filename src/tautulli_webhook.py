@@ -51,7 +51,7 @@ class TautulliWebhook:
                 "apikey": self.api_key,
                 "cmd": "notify",
                 "notifier_id": 1,  # Custom script notifier
-                "subject": "JellyPlex-Watched Sync",
+                "subject": "Ferret Sync",
                 "body": f"{user_name} watched {item.title} on {server_name} (synced from external server)",
             }
 

@@ -10,7 +10,7 @@ from plexapi.video import Movie, Episode
 class TautulliLogger:
     """
     Writes playback history directly to Tautulli's database.
-    This allows jellyplex-watched syncs to appear in Tautulli history.
+    This allows Ferret syncs to appear in Tautulli history.
     """
 
     def __init__(self, database_path: str | None = None, test_mode: bool = False):
