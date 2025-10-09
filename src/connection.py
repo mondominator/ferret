@@ -40,27 +40,27 @@ def jellyfin_emby_server_connection(
             server = Jellyfin(
                 env=env, base_url=base_url, token=server_tokens[i].strip()
             )
-            # Register server with web dashboard
+            servers.append(server)
+            # Register server with web dashboard (after init so server_name is available)
             if WEB_DASHBOARD_ENABLED:
                 app_state.add_server(
-                    name=f"Jellyfin {i+1}",
+                    name=server.server_name,
                     server_type="Jellyfin",
                     status="connected",
                     version=getattr(server, 'version', '')
                 )
-            servers.append(server)
 
         elif server_type == "emby":
             server = Emby(env=env, base_url=base_url, token=server_tokens[i].strip())
-            # Register server with web dashboard
+            servers.append(server)
+            # Register server with web dashboard (after init so server_name is available)
             if WEB_DASHBOARD_ENABLED:
                 app_state.add_server(
-                    name=f"Emby {i+1}",
+                    name=server.server_name,
                     server_type="Emby",
                     status="connected",
                     version=getattr(server, 'version', '')
                 )
-            servers.append(server)
         else:
             raise Exception("Unknown server type")
 

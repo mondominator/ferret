@@ -15,15 +15,13 @@ class WebDashboardHandler:
 
     def write(self, message):
         """Write log message to dashboard state."""
-        if isinstance(message, dict):
-            # Loguru passes a dict with 'text' key
-            text = message.get('text', '')
-        else:
-            text = str(message)
+        # Loguru sends formatted strings when serialize=False
+        text = str(message)
 
         # Remove ANSI color codes and trailing newlines
         clean_message = self.ansi_escape.sub('', text).rstrip('\n')
 
+        # Only add non-empty lines
         if clean_message:
             app_state.add_log(clean_message)
 

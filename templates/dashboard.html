@@ -3,53 +3,7 @@
 {% block content %}
 <div class="dashboard">
     <!-- Sync Status Card -->
-    <div class="card" hx-get="/api/status" hx-trigger="every 2s" hx-swap="outerHTML">
-        <h2>Sync Status</h2>
-        <div class="status-indicator">
-            {% if status.is_syncing %}
-            <span class="status-badge syncing">Syncing</span>
-            <p class="operation">{{ status.current_operation or "Processing..." }}</p>
-            {% else %}
-            <span class="status-badge idle">Idle</span>
-            <p class="operation">Waiting for next sync</p>
-            {% endif %}
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat">
-                <span class="stat-label">Last Sync</span>
-                <span class="stat-value">
-                    {% if status.last_sync_time %}
-                    {{ status.last_sync_time }}
-                    {% else %}
-                    Never
-                    {% endif %}
-                </span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Total Syncs</span>
-                <span class="stat-value">{{ status.sync_count }}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Items Synced</span>
-                <span class="stat-value">{{ status.total_items_synced }}</span>
-            </div>
-            <div class="stat">
-                <span class="stat-label">Users</span>
-                <span class="stat-value">{{ status.total_users }}</span>
-            </div>
-        </div>
-
-        <div class="sync-actions">
-            <button
-                class="btn btn-primary"
-                hx-post="/api/sync/trigger"
-                hx-swap="none"
-                {% if status.is_syncing %}disabled{% endif %}>
-                Trigger Manual Sync
-            </button>
-        </div>
-    </div>
+    {% include "partials/status_card.html" %}
 
     <!-- Servers Card -->
     <div class="card">
