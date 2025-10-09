@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <!-- Sync Status Card -->
+    <div class="card" hx-get="/api/status" hx-trigger="every 2s" hx-swap="outerHTML">
+        <h2>Sync Status</h2>
+        <div class="status-indicator">
+            {% if status.is_syncing %}
+            <span class="status-badge syncing">Syncing</span>
+            <p class="operation">{{ status.current_operation or "Processing..." }}</p>
+            {% else %}
+            <span class="status-badge idle">Idle</span>
+            <p class="operation">Waiting for next sync</p>
+            {% endif %}
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat">
+                <span class="stat-label">Last Sync</span>
+                <span class="stat-value">
+                    {% if status.last_sync_time %}
+                    {{ status.last_sync_time }}
+                    {% else %}
+                    Never
+                    {% endif %}
+                </span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Syncs</span>
+                <span class="stat-value">{{ status.sync_count }}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Items Synced</span>
+                <span class="stat-value">{{ status.total_items_synced }}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Users</span>
+                <span class="stat-value">{{ status.total_users }}</span>
+            </div>
+        </div>
+
+        <div class="sync-actions">
+            <button
+                class="btn btn-primary"
+                hx-post="/api/sync/trigger"
+                hx-swap="none"
+                {% if status.is_syncing %}disabled{% endif %}>
+                Trigger Manual Sync
+            </button>
+        </div>
+    </div>
+
+    <!-- Servers Card -->
+    <div class="card">
+        <h2>Connected Servers</h2>
+        <div class="servers-list">
+            {% if status.servers %}
+                {% for name, info in status.servers.items() %}
+                <div class="server-item">
+                    <div class="server-info">
+                        <span class="server-name">{{ name }}</span>
+                        <span class="server-type">{{ info.type }}</span>
+                    </div>
+                    <div class="server-status">
+                        <span class="status-badge {{ info.status }}">{{ info.status }}</span>
+                        {% if info.version %}
+                        <span class="server-version">v{{ info.version }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-data">No servers connected</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Backfill Status Card -->
+    <div class="card">
+        <h2>Tautulli Backfill</h2>
+        <div class="backfill-status">
+            {% if status.backfill_complete %}
+            <span class="status-badge success">Complete</span>
+            <p>{{ status.backfill_count }} historical items added to Tautulli</p>
+            {% else %}
+            <span class="status-badge pending">Pending</span>
+            <p>Backfill will run on next sync</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Live Logs Card -->
+    <div class="card logs-card">
+        <h2>Live Logs</h2>
+        <div id="logs-container" class="logs-container">
+            <div id="logs-content" class="logs-content"></div>
+        </div>
+        <div class="logs-controls">
+            <button class="btn btn-secondary" onclick="clearLogs()">Clear</button>
+            <button class="btn btn-secondary" onclick="scrollToBottom()">Scroll to Bottom</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // WebSocket for live logs
+    let ws;
+    let autoScroll = true;
+
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/logs`);
+
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+        };
+
+        ws.onmessage = (event) => {
+            const logsContent = document.getElementById('logs-content');
+            const logLine = document.createElement('div');
+            logLine.className = 'log-line';
+            logLine.textContent = event.data;
+            logsContent.appendChild(logLine);
+
+            // Auto-scroll if enabled
+            if (autoScroll) {
+                scrollToBottom();
+            }
+
+            // Keep only last 500 lines
+            while (logsContent.children.length > 500) {
+                logsContent.removeChild(logsContent.firstChild);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket disconnected, reconnecting in 3s...');
+            setTimeout(connectWebSocket, 3000);
+        };
+    }
+
+    function clearLogs() {
+        document.getElementById('logs-content').innerHTML = '';
+    }
+
+    function scrollToBottom() {
+        const container = document.getElementById('logs-container');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Detect manual scrolling
+    document.getElementById('logs-container').addEventListener('scroll', (e) => {
+        const container = e.target;
+        const isAtBottom = container.scrollHeight - container.scrollTop === container.clientHeight;
+        autoScroll = isAtBottom;
+    });
+
+    // Connect WebSocket on page load
+    connectWebSocket();
+</script>
+{% endblock %}

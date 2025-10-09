@@ -103,5 +103,8 @@ ENV SYNC_FROM_EMBY_TO_PLEX="True"
 ENV SYNC_FROM_EMBY_TO_JELLYFIN="True"
 ENV SYNC_FROM_EMBY_TO_EMBY="True"
 
+# Expose web dashboard port
+EXPOSE 8080
+
 ENTRYPOINT ["tini", "--", "/app/entrypoint.sh"]
-CMD ["python", "-u", "main.py"]
+CMD ["python", "-u", "-m", "src.web_main"]
