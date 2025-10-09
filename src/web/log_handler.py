@@ -15,15 +15,20 @@ class WebDashboardHandler:
 
     def write(self, message):
         """Write log message to dashboard state."""
-        # Loguru sends formatted strings when serialize=False
-        text = str(message)
+        try:
+            # Loguru sends formatted strings when serialize=False
+            text = str(message)
 
-        # Remove ANSI color codes and trailing newlines
-        clean_message = self.ansi_escape.sub('', text).rstrip('\n')
+            # Remove ANSI color codes and trailing newlines
+            clean_message = self.ansi_escape.sub('', text).rstrip('\n')
 
-        # Only add non-empty lines
-        if clean_message:
-            app_state.add_log(clean_message)
+            # Only add non-empty lines
+            if clean_message:
+                app_state.add_log(clean_message)
+                # Also print to stdout for debugging
+                print(f"[WEB LOG] {clean_message}", flush=True)
+        except Exception as e:
+            print(f"[WEB LOG ERROR] {e}", flush=True)
 
     def flush(self):
         """Flush handler (no-op for our use case)."""

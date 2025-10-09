@@ -98,3 +98,15 @@ async def websocket_logs(websocket: WebSocket):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "ferret"}
+
+
+@app.get("/api/debug/state")
+async def debug_state():
+    """Debug endpoint to see current state."""
+    return {
+        "log_count": len(app_state.recent_logs),
+        "server_count": len(app_state.servers),
+        "servers": app_state.servers,
+        "status": app_state.get_status(),
+        "recent_logs_sample": list(app_state.recent_logs)[-10:] if app_state.recent_logs else []
+    }
