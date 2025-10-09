@@ -722,6 +722,21 @@ class Plex:
                 logger.error(f"Plex: {user} Failed to get PlexServer")
                 continue
 
+            # Backfill Tautulli history for this user if enabled
+            if self.tautulli_logger and self.tautulli_logger.enabled:
+                try:
+                    # Get all libraries this user has access to
+                    libraries = user_plex.library.sections()
+                    self.tautulli_logger.backfill_user_watched(
+                        user=user,
+                        user_plex=user_plex,
+                        libraries=libraries,
+                        server_name=self.plex_name,
+                        machine_id=self.plex.machineIdentifier,
+                    )
+                except Exception as e:
+                    logger.error(f"Plex: Failed to backfill Tautulli for {user.title}: {e}")
+
             for library_name in user_data.libraries:
                 library_data = user_data.libraries[library_name]
                 library_other = None

@@ -23,6 +23,7 @@ class TautulliLogger:
         """
         self.database_path = database_path
         self.test_mode = test_mode or database_path == "test"
+        self.backfilled_users = set()  # Track which users have been backfilled this session
 
         if self.test_mode:
             self.enabled = True
@@ -37,6 +38,47 @@ class TautulliLogger:
             elif self.enabled:
                 logger.info(f"Tautulli: History logging enabled to {database_path}")
 
+    def entry_exists(
+        self,
+        rating_key: int,
+        user_id: str,
+    ) -> bool:
+        """
+        Check if a watch entry already exists in Tautulli for this item and user.
+
+        Args:
+            rating_key: Plex rating key for the item
+            user_id: Plex user ID
+
+        Returns:
+            True if entry exists, False otherwise
+        """
+        if not self.enabled or self.test_mode:
+            return False
+
+        conn = None
+        try:
+            conn = sqlite3.connect(self.database_path)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT COUNT(*) FROM session_history
+                WHERE rating_key = ? AND user_id = ?
+                """,
+                (rating_key, user_id),
+            )
+
+            count = cursor.fetchone()[0]
+            return count > 0
+
+        except sqlite3.Error as e:
+            logger.warning(f"Tautulli: Error checking if entry exists: {e}")
+            return False
+        finally:
+            if conn:
+                conn.close()
+
     def log_watch(
         self,
         item: Movie | Episode,
@@ -46,6 +88,7 @@ class TautulliLogger:
         machine_id: str,
         watch_time: int | None = None,
         section_id: int | None = None,
+        watch_timestamp: int | None = None,
     ) -> None:
         """
         Log a watch event to Tautulli's database.
@@ -58,6 +101,7 @@ class TautulliLogger:
             machine_id: Plex server machine identifier
             watch_time: Watch duration in milliseconds (None = fully watched)
             section_id: Plex library section ID
+            watch_timestamp: Unix timestamp when item was watched (None = now)
         """
         if not self.enabled:
             return
@@ -84,10 +128,11 @@ class TautulliLogger:
 
         try:
             # Build session data
-            now = int(datetime.now().timestamp())
+            # Use provided timestamp or current time
+            stopped_timestamp = watch_timestamp if watch_timestamp is not None else int(datetime.now().timestamp())
             session_data = {
-                "started": now - int(watched_duration / 1000),  # Backdate start time
-                "stopped": now,
+                "started": stopped_timestamp - int(watched_duration / 1000),  # Backdate start time
+                "stopped": stopped_timestamp,
                 "user": user_name,
                 "user_id": user_id,
                 "rating_key": item.ratingKey,
@@ -238,3 +283,122 @@ class TautulliLogger:
         finally:
             if conn:
                 conn.close()
+
+    def backfill_user_watched(
+        self,
+        user,
+        user_plex,
+        libraries,
+        server_name: str,
+        machine_id: str,
+    ) -> None:
+        """
+        Backfill Tautulli history for all watched items that don't have entries yet.
+        Only runs once per user per session.
+
+        Args:
+            user: Plex user object
+            user_plex: PlexServer instance for this user
+            libraries: List of library sections to backfill
+            server_name: Plex server name
+            machine_id: Plex server machine identifier
+        """
+        if not self.enabled:
+            return
+
+        # Check if we've already backfilled this user this session
+        user_id = user.id if hasattr(user, 'id') else user.title
+        if user_id in self.backfilled_users:
+            logger.debug(f"Tautulli: Skipping backfill for {user.title} - already done this session")
+            return
+
+        self.backfilled_users.add(user_id)
+        logger.info(f"Tautulli: Starting backfill for user {user.title}")
+
+        backfill_count = 0
+
+        for library in libraries:
+            try:
+                logger.info(f"Tautulli: Backfilling library {library.title} for {user.title}")
+
+                # Get section_id
+                section_id = None
+                if hasattr(library, 'key') and library.key is not None:
+                    try:
+                        if isinstance(library.key, int):
+                            section_id = library.key
+                        else:
+                            section_id = int(str(library.key).split('/')[-1])
+                    except (ValueError, IndexError, AttributeError) as e:
+                        logger.warning(f"Could not extract section_id from {library.key}: {e}")
+
+                library_section = user_plex.library.section(library.title)
+
+                if library.type == "movie":
+                    # Get all watched movies
+                    for movie in library_section.search(unwatched=False):
+                        if not movie.isWatched:
+                            continue
+
+                        # Check if entry already exists
+                        if self.entry_exists(movie.ratingKey, user.id):
+                            logger.debug(f"Tautulli: Skipping {movie.title} - already in history")
+                            continue
+
+                        # Determine timestamp to use
+                        watch_timestamp = None
+                        if hasattr(movie, 'lastViewedAt') and movie.lastViewedAt:
+                            watch_timestamp = int(movie.lastViewedAt.timestamp())
+                            logger.debug(f"Tautulli: Using lastViewedAt for {movie.title}")
+                        elif hasattr(movie, 'addedAt') and movie.addedAt:
+                            watch_timestamp = int(movie.addedAt.timestamp())
+                            logger.debug(f"Tautulli: Using addedAt for {movie.title}")
+
+                        # Log the watch
+                        self.log_watch(
+                            item=movie,
+                            user_name=user.title,
+                            user_id=user.id,
+                            server_name=server_name,
+                            machine_id=machine_id,
+                            watch_time=None,
+                            section_id=section_id,
+                            watch_timestamp=watch_timestamp,
+                        )
+                        backfill_count += 1
+
+                elif library.type == "show":
+                    # Get all shows and their watched episodes
+                    for show in library_section.search(unwatched=False):
+                        for episode in show.watched():
+                            # Check if entry already exists
+                            if self.entry_exists(episode.ratingKey, user.id):
+                                logger.debug(f"Tautulli: Skipping {show.title} {episode.title} - already in history")
+                                continue
+
+                            # Determine timestamp to use
+                            watch_timestamp = None
+                            if hasattr(episode, 'lastViewedAt') and episode.lastViewedAt:
+                                watch_timestamp = int(episode.lastViewedAt.timestamp())
+                                logger.debug(f"Tautulli: Using lastViewedAt for {show.title} {episode.title}")
+                            elif hasattr(episode, 'addedAt') and episode.addedAt:
+                                watch_timestamp = int(episode.addedAt.timestamp())
+                                logger.debug(f"Tautulli: Using addedAt for {show.title} {episode.title}")
+
+                            # Log the watch
+                            self.log_watch(
+                                item=episode,
+                                user_name=user.title,
+                                user_id=user.id,
+                                server_name=server_name,
+                                machine_id=machine_id,
+                                watch_time=None,
+                                section_id=section_id,
+                                watch_timestamp=watch_timestamp,
+                            )
+                            backfill_count += 1
+
+            except Exception as e:
+                logger.error(f"Tautulli: Failed to backfill library {library.title}: {e}")
+
+        logger.info(f"Tautulli: Backfill complete for {user.title} - added {backfill_count} entries")
