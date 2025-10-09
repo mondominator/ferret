@@ -43,6 +43,7 @@ def jellyfin_emby_server_connection(
             servers.append(server)
             # Register server with web dashboard (after init so server_name is available)
             if WEB_DASHBOARD_ENABLED:
+                logger.info(f"Web: Registering Jellyfin server: {server.server_name}")
                 app_state.add_server(
                     name=server.server_name,
                     server_type="Jellyfin",
@@ -55,6 +56,7 @@ def jellyfin_emby_server_connection(
             servers.append(server)
             # Register server with web dashboard (after init so server_name is available)
             if WEB_DASHBOARD_ENABLED:
+                logger.info(f"Web: Registering Emby server: {server.server_name}")
                 app_state.add_server(
                     name=server.server_name,
                     server_type="Emby",
@@ -103,6 +105,7 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
 
             # Register server with web dashboard
             if WEB_DASHBOARD_ENABLED:
+                logger.info(f"Web: Registering Plex server: {server.plex.friendlyName}")
                 app_state.add_server(
                     name=server.plex.friendlyName,
                     server_type="Plex",
@@ -142,6 +145,7 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
 
             # Register server with web dashboard
             if WEB_DASHBOARD_ENABLED:
+                logger.info(f"Web: Registering Plex server: {server.plex.friendlyName}")
                 app_state.add_server(
                     name=server.plex.friendlyName,
                     server_type="Plex",

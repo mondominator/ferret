@@ -33,6 +33,9 @@ class AppState:
         # Recent logs (keep last 1000 lines)
         self.recent_logs = deque(maxlen=1000)
 
+        # Add initial log message
+        self.add_log("Web dashboard initialized")
+
         # Manual sync trigger
         self.manual_sync_requested = False
 
