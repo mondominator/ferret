@@ -9,23 +9,23 @@ if [ "$(id -u)" = '0' ]; then
     if [ ! "$(getent group "$PGID")" ]; then
         # If groupadd exists, use it
         if command -v groupadd > /dev/null; then
-            groupadd -g "$PGID" jellyplex_watched
+            groupadd -g "$PGID" ferret
         elif command -v addgroup > /dev/null; then
-            addgroup -g "$PGID" jellyplex_watched
+            addgroup -g "$PGID" ferret
         fi
     fi
 
     # If user id does not exist, create the user
     if [ ! "$(getent passwd "$PUID")" ]; then
         if command -v useradd > /dev/null; then
-            useradd --no-create-home -u "$PUID" -g "$PGID" jellyplex_watched
+            useradd --no-create-home -u "$PUID" -g "$PGID" ferret
         elif command -v adduser > /dev/null; then
             # Get the group name based on the PGID since adduser does not have a flag to specify the group id
             # and if the group id already exists the group name will be sommething unexpected
             GROUPNAME=$(getent group "$PGID" | cut -d: -f1)
-            
+
             # Use alpine busybox adduser syntax
-            adduser -D -H -u "$PUID" -G "$GROUPNAME" jellyplex_watched
+            adduser -D -H -u "$PUID" -G "$GROUPNAME" ferret
         fi
     fi
 else 
@@ -46,7 +46,7 @@ if [ -n "$MARK_DIR" ]; then
     mkdir -p "$MARK_DIR"  
 fi
 
-echo "Starting JellyPlex-Watched with UID: $PUID and GID: $PGID"
+echo "Starting Ferret with UID: $PUID and GID: $PGID"
 
 # If root run as the created user
 if [ "$(id -u)" = '0' ]; then
