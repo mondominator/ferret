@@ -431,6 +431,19 @@ class Plex:
 
                 libraries = user_plex.library.sections()
 
+                # Backfill Tautulli history for this user if enabled
+                if self.tautulli_logger and self.tautulli_logger.enabled:
+                    try:
+                        self.tautulli_logger.backfill_user_watched(
+                            user=user,
+                            user_plex=user_plex,
+                            libraries=libraries,
+                            server_name=self.plex.friendlyName,
+                            machine_id=self.plex.machineIdentifier,
+                        )
+                    except Exception as e:
+                        logger.error(f"Plex: Failed to backfill Tautulli for {user.title}: {e}")
+
                 for library in libraries:
                     if library.title not in sync_libraries:
                         continue
