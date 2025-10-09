@@ -71,21 +71,28 @@ async def websocket_logs(websocket: WebSocket):
     try:
         # Send recent logs first
         recent_logs = app_state.get_logs(100)
+        logger.info(f"Web: Sending {len(recent_logs)} recent logs to client")
         for log_line in recent_logs:
             await websocket.send_text(log_line)
 
         # Keep connection alive and send new logs
         last_log_count = len(app_state.recent_logs)
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)  # Check more frequently
 
             # Check for new logs
             current_log_count = len(app_state.recent_logs)
             if current_log_count > last_log_count:
-                # Send new logs
-                new_logs = app_state.get_logs(current_log_count - last_log_count)
+                # Calculate how many new logs
+                new_log_count = current_log_count - last_log_count
+                # Get all logs and take the new ones from the end
+                all_logs = list(app_state.recent_logs)
+                new_logs = all_logs[-new_log_count:]
+
+                logger.debug(f"Web: Sending {len(new_logs)} new logs to client")
                 for log_line in new_logs:
                     await websocket.send_text(log_line)
+
                 last_log_count = current_log_count
 
     except WebSocketDisconnect:

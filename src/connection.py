@@ -169,9 +169,11 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
 
     emby_baseurl = get_env_value(env, "EMBY_BASEURL", None)
     emby_token = get_env_value(env, "EMBY_TOKEN", None)
+    logger.debug(f"Emby config check: baseurl={emby_baseurl}, token={'***' if emby_token else None}")
     if emby_baseurl and emby_token:
-        servers.extend(
-            jellyfin_emby_server_connection(env, emby_baseurl, emby_token, "emby")
-        )
+        logger.info("Connecting to Emby server(s)...")
+        emby_servers = jellyfin_emby_server_connection(env, emby_baseurl, emby_token, "emby")
+        logger.info(f"Connected to {len(emby_servers)} Emby server(s)")
+        servers.extend(emby_servers)
 
     return servers
