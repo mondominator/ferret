@@ -291,7 +291,7 @@ class TautulliLogger:
         libraries,
         server_name: str,
         machine_id: str,
-    ) -> None:
+    ) -> int:
         """
         Backfill Tautulli history for all watched items that don't have entries yet.
         Only runs once per user per session.
@@ -304,22 +304,22 @@ class TautulliLogger:
             machine_id: Plex server machine identifier
         """
         if not self.enabled:
-            return
+            return 0
 
         # Check if we've already backfilled this user this session
         user_id = user.id if hasattr(user, 'id') else user.title
         if user_id in self.backfilled_users:
             logger.debug(f"Tautulli: Skipping backfill for {user.title} - already done this session")
-            return
+            return 0
 
         self.backfilled_users.add(user_id)
-        logger.info(f"Tautulli: Starting backfill for user {user.title}")
+        logger.debug(f"Tautulli: Starting backfill for user {user.title}")
 
         backfill_count = 0
 
         for library in libraries:
             try:
-                logger.info(f"Tautulli: Backfilling library {library.title} for {user.title}")
+                logger.debug(f"Tautulli: Backfilling library {library.title} for {user.title}")
 
                 # Get section_id
                 section_id = None
@@ -401,4 +401,8 @@ class TautulliLogger:
             except Exception as e:
                 logger.error(f"Tautulli: Failed to backfill library {library.title}: {e}")
 
-        logger.info(f"Tautulli: Backfill complete for {user.title} - added {backfill_count} entries")
+        if backfill_count > 0:
+            logger.info(f"Tautulli: Backfill complete for {user.title} - added {backfill_count} entries")
+        else:
+            logger.debug(f"Tautulli: Backfill complete for {user.title} - no new entries")
+        return backfill_count

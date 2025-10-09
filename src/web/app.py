@@ -30,6 +30,60 @@ async def dashboard(request: Request):
     )
 
 
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    """Settings page."""
+    from dotenv import dotenv_values
+    from src.functions import get_env_value
+
+    env_file = get_env_value(None, "ENV_FILE", ".env")
+    config = dotenv_values(env_file)
+
+    return templates.TemplateResponse(
+        "settings.html",
+        {"request": request, "config": config}
+    )
+
+
+@app.post("/api/settings/save")
+async def save_settings(request: Request):
+    """Save settings to .env file."""
+    try:
+        data = await request.json()
+        from src.functions import get_env_value
+
+        env_file = get_env_value(None, "ENV_FILE", ".env")
+
+        # Read existing .env
+        with open(env_file, 'r') as f:
+            lines = f.readlines()
+
+        # Update values
+        updated_lines = []
+        keys_updated = set()
+
+        for line in lines:
+            updated = False
+            for key, value in data.items():
+                if line.strip().startswith(f"{key} =") or line.strip().startswith(f"{key}="):
+                    updated_lines.append(f'{key} = "{value}"\n')
+                    keys_updated.add(key)
+                    updated = True
+                    break
+            if not updated:
+                updated_lines.append(line)
+
+        # Write back to .env
+        with open(env_file, 'w') as f:
+            f.writelines(updated_lines)
+
+        logger.info("Settings saved successfully")
+        return {"success": True, "message": "Settings saved"}
+    except Exception as e:
+        logger.error(f"Failed to save settings: {e}")
+        return {"success": False, "message": str(e)}
+
+
 @app.get("/api/status")
 async def get_status():
     """Get current application status (JSON)."""
@@ -41,6 +95,24 @@ async def get_status_card(request: Request):
     """Get status card HTML for htmx updates."""
     return templates.TemplateResponse(
         "partials/status_card.html",
+        {"request": request, "status": app_state.get_status()}
+    )
+
+
+@app.get("/api/status/footer", response_class=HTMLResponse)
+async def get_status_footer(request: Request):
+    """Get status footer HTML for htmx updates."""
+    return templates.TemplateResponse(
+        "partials/status_footer.html",
+        {"request": request, "status": app_state.get_status()}
+    )
+
+
+@app.get("/api/status/header", response_class=HTMLResponse)
+async def get_status_header(request: Request):
+    """Get status header HTML for htmx updates."""
+    return templates.TemplateResponse(
+        "partials/status_header.html",
         {"request": request, "status": app_state.get_status()}
     )
 
@@ -76,24 +148,25 @@ async def websocket_logs(websocket: WebSocket):
             await websocket.send_text(log_line)
 
         # Keep connection alive and send new logs
-        last_log_count = len(app_state.recent_logs)
+        # Track the last log we sent to detect new ones
+        sent_logs = set(recent_logs)
+
         while True:
             await asyncio.sleep(0.5)  # Check more frequently
 
-            # Check for new logs
-            current_log_count = len(app_state.recent_logs)
-            if current_log_count > last_log_count:
-                # Calculate how many new logs
-                new_log_count = current_log_count - last_log_count
-                # Get all logs and take the new ones from the end
-                all_logs = list(app_state.recent_logs)
-                new_logs = all_logs[-new_log_count:]
+            # Check for new logs by comparing with what we've sent
+            current_logs = list(app_state.recent_logs)
+            new_logs = [log for log in current_logs if log not in sent_logs]
 
+            if new_logs:
                 logger.debug(f"Web: Sending {len(new_logs)} new logs to client")
                 for log_line in new_logs:
                     await websocket.send_text(log_line)
+                    sent_logs.add(log_line)
 
-                last_log_count = current_log_count
+                # Keep sent_logs from growing too large
+                if len(sent_logs) > 1000:
+                    sent_logs = set(current_logs[-500:])
 
     except WebSocketDisconnect:
         logger.info("Web: Log viewer WebSocket disconnected")

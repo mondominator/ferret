@@ -2,10 +2,11 @@
 Shared state management for Ferret web dashboard.
 Stores sync status, server info, and recent activity.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from collections import deque
 import threading
+import os
 
 
 class AppState:
@@ -97,9 +98,16 @@ class AppState:
     def get_status(self) -> dict:
         """Get current application status."""
         with self._lock:
+            # Format last_sync_time to be human readable in local time
+            last_sync_formatted = None
+            if self.last_sync_time:
+                # Get timezone offset from TZ env var or default to UTC
+                # Docker containers often need TZ env var set to show correct local time
+                last_sync_formatted = self.last_sync_time.strftime("%b %d, %I:%M %p").lstrip('0')
+
             return {
                 "is_syncing": self.is_syncing,
-                "last_sync_time": self.last_sync_time.isoformat() if self.last_sync_time else None,
+                "last_sync_time": last_sync_formatted,
                 "next_sync_time": self.next_sync_time.isoformat() if self.next_sync_time else None,
                 "sync_count": self.sync_count,
                 "current_operation": self.current_operation,

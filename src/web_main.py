@@ -37,13 +37,36 @@ def run_web_server():
 
 def main():
     """Main entry point - runs both sync and web server."""
-    # Add custom log handler for web dashboard
-    # Use serialize=True to get structured log data
+    import os
+    from dotenv import dotenv_values
+    from src.functions import get_env_value
+
+    # Get DEBUG_LEVEL from .env to respect user's log level preference
+    env_file = get_env_value(None, "ENV_FILE", ".env")
+    env = dotenv_values(env_file)
+    debug_level = get_env_value(env, "DEBUG_LEVEL", "INFO")
+    if debug_level:
+        debug_level = debug_level.upper()
+
+    # Remove default logger handlers first
+    logger.remove()
+
+    # Add stdout handler for Docker logs
+    import sys
+    logger.add(
+        sys.stdout,
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}",
+        level=debug_level,
+        filter=lambda record: not record["message"].startswith("Web:")
+    )
+
+    # Add custom log handler for web dashboard with the configured level
     logger.add(
         WebDashboardHandler(),
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}",
         colorize=False,
-        serialize=False
+        serialize=False,
+        level=debug_level
     )
 
     logger.info("Ferret: Starting with web dashboard enabled")

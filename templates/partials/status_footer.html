@@ -1,0 +1,15 @@
+<div class="logs-footer" hx-get="/api/status/footer" hx-trigger="every 2s" hx-swap="outerHTML">
+    <div class="sync-status-compact">
+        {% if status.is_syncing %}
+        <span class="status-badge syncing">Syncing</span>
+        {% if status.current_operation %}
+        <span class="operation-text">{{ status.current_operation }}</span>
+        {% endif %}
+        {% else %}
+        <span class="status-badge idle">Idle</span>
+        {% if status.last_sync_time %}
+        <span class="operation-text">Last sync: {{ status.last_sync_time }}</span>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
