@@ -34,7 +34,13 @@ def run_web_server():
 def main():
     """Main entry point - runs both sync and web server."""
     # Add custom log handler for web dashboard
-    logger.add(WebDashboardHandler(), format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
+    # Use serialize=True to get structured log data
+    logger.add(
+        WebDashboardHandler(),
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {message}",
+        colorize=False,
+        serialize=False
+    )
 
     logger.info("Ferret: Starting with web dashboard enabled")
 

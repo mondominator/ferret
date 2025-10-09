@@ -32,8 +32,17 @@ async def dashboard(request: Request):
 
 @app.get("/api/status")
 async def get_status():
-    """Get current application status."""
+    """Get current application status (JSON)."""
     return app_state.get_status()
+
+
+@app.get("/api/status/card", response_class=HTMLResponse)
+async def get_status_card(request: Request):
+    """Get status card HTML for htmx updates."""
+    return templates.TemplateResponse(
+        "partials/status_card.html",
+        {"request": request, "status": app_state.get_status()}
+    )
 
 
 @app.get("/api/logs")
