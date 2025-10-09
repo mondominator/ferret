@@ -1,0 +1,81 @@
+FROM ghcr.io/astral-sh/uv:bookworm-slim
+
+ENV PUID=1000
+ENV PGID=1000
+
+RUN apt-get update && \
+    apt-get install tini gosu dos2unix --yes --no-install-recommends && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Enable bytecode compilation
+ENV UV_COMPILE_BYTECODE=1
+
+ENV UV_LINK_MODE=copy
+
+# Set the cache directory to /tmp instead of root
+ENV UV_CACHE_DIR=/tmp/.cache/uv
+
+ENV UV_PYTHON_INSTALL_DIR=/app/.bin
+
+# Install the project's dependencies using the lockfile and settings
+RUN --mount=type=cache,target=/tmp/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev
+
+# Then, add the rest of the project source code and install it
+# Installing separately from its dependencies allows optimal layer caching
+COPY . /app
+RUN --mount=type=cache,target=/tmp/.cache/uv \
+    uv sync --frozen --no-dev
+
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
+
+RUN chmod +x *.sh && \
+    dos2unix *.sh
+
+# Set default values to prevent issues
+ENV DRYRUN="True"
+ENV DEBUG_LEVEL="INFO"
+ENV RUN_ONLY_ONCE="False"
+ENV SLEEP_DURATION=3600
+ENV LOG_FILE="log.log"
+ENV MARK_FILE="mark.log"
+ENV REQUEST_TIME=300
+ENV GENERATE_GUIDS="True"
+ENV GENERATE_LOCATIONS="True"
+ENV MAX_THREADS=1
+ENV USER_MAPPING=""
+ENV LIBRARY_MAPPING=""
+ENV BLACKLIST_LIBRARY=""
+ENV WHITELIST_LIBRARY=""
+ENV BLACKLIST_LIBRARY_TYPE=""
+ENV WHITELIST_LIBRARY_TYPE=""
+ENV BLACKLIST_USERS=""
+ENV WHITELIST_USERS=""
+ENV PLEX_BASEURL=""
+ENV PLEX_TOKEN=""
+ENV PLEX_USERNAME=""
+ENV PLEX_PASSWORD=""
+ENV PLEX_SERVERNAME=""
+ENV SSL_BYPASS="False"
+ENV JELLYFIN_BASEURL=""
+ENV JELLYFIN_TOKEN=""
+ENV EMBY_BASEURL=""
+ENV EMBY_TOKEN=""
+ENV SYNC_FROM_PLEX_TO_JELLYFIN="True"
+ENV SYNC_FROM_PLEX_TO_PLEX="True"
+ENV SYNC_FROM_PLEX_TO_EMBY="True"
+ENV SYNC_FROM_JELLYFIN_TO_PLEX="True"
+ENV SYNC_FROM_JELLYFIN_TO_JELLYFIN="True"
+ENV SYNC_FROM_JELLYFIN_TO_EMBY="True"
+ENV SYNC_FROM_EMBY_TO_PLEX="True"
+ENV SYNC_FROM_EMBY_TO_JELLYFIN="True"
+ENV SYNC_FROM_EMBY_TO_EMBY="True"
+
+ENTRYPOINT ["/bin/tini", "--", "/app/entrypoint.sh"]
+CMD ["python", "-u", "main.py"]

@@ -1,0 +1,13 @@
+.venv
+.dockerignore
+.env
+.env.sample
+.git
+.github
+.gitignore
+.idea
+.vscode
+
+Dockerfile*
+README.md
+test
