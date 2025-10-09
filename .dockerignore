@@ -11,3 +11,8 @@
 Dockerfile*
 README.md
 test
+
+# Database files
+tautulli.db
+tautulli.db-*
+*.db
