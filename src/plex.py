@@ -283,6 +283,42 @@ class Plex:
     def info(self) -> str:
         return f"Plex {self.plex.friendlyName}: {self.plex.version}"
 
+    def backfill_all_users(self) -> None:
+        """
+        Backfill Tautulli history for all Plex users.
+        Should be called once during initialization or first sync.
+        """
+        if not self.tautulli_logger or not self.tautulli_logger.enabled:
+            return
+
+        logger.info("Plex: Starting Tautulli backfill for all users")
+
+        for user in self.users:
+            try:
+                if self.admin_user == user:
+                    user_plex = self.plex
+                else:
+                    token = user.get_token(self.plex.machineIdentifier)
+                    if token:
+                        user_plex = self.login(self.base_url, token, None, None, None)
+                    else:
+                        logger.warning(f"Plex: Failed to get token for {user.title}, skipping backfill")
+                        continue
+
+                libraries = user_plex.library.sections()
+                self.tautulli_logger.backfill_user_watched(
+                    user=user,
+                    user_plex=user_plex,
+                    libraries=libraries,
+                    server_name=self.plex.friendlyName,
+                    machine_id=self.plex.machineIdentifier,
+                )
+
+            except Exception as e:
+                logger.error(f"Plex: Failed to backfill Tautulli for {user.title}: {e}")
+
+        logger.info("Plex: Completed Tautulli backfill for all users")
+
     def get_users(self) -> list[MyPlexUser | MyPlexAccount]:
         try:
             users: list[MyPlexUser | MyPlexAccount] = self.plex.myPlexAccount().users()
