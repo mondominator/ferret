@@ -24,9 +24,11 @@ from src.black_white import setup_black_white_lists
 from src.connection import generate_server_connections
 
 
-def configure_logger(log_file: str = "log.log", debug_level: str = "INFO") -> None:
+def configure_logger(log_file: str = "log.log", debug_level: str = "INFO", preserve_handlers: bool = False) -> None:
     # Remove default logger to configure our own
-    logger.remove()
+    # If preserve_handlers is True, keep existing handlers (for web dashboard)
+    if not preserve_handlers:
+        logger.remove()
 
     # Choose log level based on environment
     # If in debug mode with a "debug" level, use DEBUG; otherwise, default to INFO.
@@ -283,11 +285,15 @@ def main() -> None:
         debug_level = debug_level.upper()
 
     times: list[float] = []
+    # Check if running with web dashboard
+    preserve_web_handlers = os.getenv('FERRET_WEB_DASHBOARD') == '1'
+
     while True:
         try:
             start = perf_counter()
             # Reconfigure the logger on each loop so the logs are rotated on each run
-            configure_logger(log_file, debug_level)
+            # Preserve handlers if running with web dashboard
+            configure_logger(log_file, debug_level, preserve_handlers=preserve_web_handlers)
             main_loop(env)
             end = perf_counter()
             times.append(end - start)
