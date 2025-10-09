@@ -14,6 +14,10 @@ from src.web.log_handler import WebDashboardHandler
 
 def run_sync_loop():
     """Run the sync loop in a separate thread."""
+    import os
+    # Set environment variable to signal we're running with web dashboard
+    os.environ['FERRET_WEB_DASHBOARD'] = '1'
+
     try:
         sync_main()
     except Exception as e:
