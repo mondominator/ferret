@@ -74,8 +74,7 @@ class AppState:
     def add_log(self, log_line: str):
         """Add a log line to recent logs."""
         with self._lock:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.recent_logs.append(f"[{timestamp}] {log_line}")
+            self.recent_logs.append(log_line)
 
     def get_logs(self, limit: int = 100) -> list[str]:
         """Get recent log lines."""

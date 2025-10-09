@@ -6,6 +6,13 @@ from src.plex import Plex
 from src.jellyfin import Jellyfin
 from src.emby import Emby
 
+# Import web state if available
+try:
+    from src.web.state import app_state
+    WEB_DASHBOARD_ENABLED = True
+except ImportError:
+    WEB_DASHBOARD_ENABLED = False
+
 
 def jellyfin_emby_server_connection(
     env,
@@ -33,10 +40,26 @@ def jellyfin_emby_server_connection(
             server = Jellyfin(
                 env=env, base_url=base_url, token=server_tokens[i].strip()
             )
+            # Register server with web dashboard
+            if WEB_DASHBOARD_ENABLED:
+                app_state.add_server(
+                    name=f"Jellyfin {i+1}",
+                    server_type="Jellyfin",
+                    status="connected",
+                    version=getattr(server, 'version', '')
+                )
             servers.append(server)
 
         elif server_type == "emby":
             server = Emby(env=env, base_url=base_url, token=server_tokens[i].strip())
+            # Register server with web dashboard
+            if WEB_DASHBOARD_ENABLED:
+                app_state.add_server(
+                    name=f"Emby {i+1}",
+                    server_type="Emby",
+                    status="connected",
+                    version=getattr(server, 'version', '')
+                )
             servers.append(server)
         else:
             raise Exception("Unknown server type")
@@ -78,6 +101,15 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
 
             logger.debug(f"Plex Server {i} info: {server.info()}")
 
+            # Register server with web dashboard
+            if WEB_DASHBOARD_ENABLED:
+                app_state.add_server(
+                    name=server.plex.friendlyName,
+                    server_type="Plex",
+                    status="connected",
+                    version=server.plex.version
+                )
+
             # Backfill Tautulli history for all users on this server
             server.backfill_all_users()
 
@@ -107,6 +139,15 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
             )
 
             logger.debug(f"Plex Server {i} info: {server.info()}")
+
+            # Register server with web dashboard
+            if WEB_DASHBOARD_ENABLED:
+                app_state.add_server(
+                    name=server.plex.friendlyName,
+                    server_type="Plex",
+                    status="connected",
+                    version=server.plex.version
+                )
 
             # Backfill Tautulli history for all users on this server
             server.backfill_all_users()
