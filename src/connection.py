@@ -32,41 +32,58 @@ def jellyfin_emby_server_connection(
         )
 
     for i, base_url in enumerate(server_baseurls):
-        base_url = base_url.strip()
-        if base_url[-1] == "/":
-            base_url = base_url[:-1]
+        try:
+            base_url = base_url.strip()
+            if base_url[-1] == "/":
+                base_url = base_url[:-1]
 
-        if server_type == "jellyfin":
-            server = Jellyfin(
-                env=env, base_url=base_url, token=server_tokens[i].strip()
-            )
-            servers.append(server)
-            # Register server with web dashboard (after init so server_name is available)
-            if WEB_DASHBOARD_ENABLED:
-                logger.info(f"Web: Registering Jellyfin server: {server.server_name}")
-                app_state.add_server(
-                    name=server.server_name,
-                    server_type="Jellyfin",
-                    status="connected",
-                    version=getattr(server, 'version', '')
+            logger.info(f"Connecting to {server_type.capitalize()} server at {base_url}...")
+
+            if server_type == "jellyfin":
+                server = Jellyfin(
+                    env=env, base_url=base_url, token=server_tokens[i].strip()
                 )
+                servers.append(server)
+                # Register server with web dashboard (after init so server_name is available)
+                if WEB_DASHBOARD_ENABLED:
+                    logger.info(f"Web: Registering Jellyfin server: {server.server_name}")
+                    app_state.add_server(
+                        name=server.server_name,
+                        server_type="Jellyfin",
+                        status="connected",
+                        version=getattr(server, 'version', '')
+                    )
+                logger.info(f"Successfully connected to Jellyfin server: {server.server_name}")
 
-        elif server_type == "emby":
-            server = Emby(env=env, base_url=base_url, token=server_tokens[i].strip())
-            servers.append(server)
-            # Register server with web dashboard (after init so server_name is available)
+            elif server_type == "emby":
+                server = Emby(env=env, base_url=base_url, token=server_tokens[i].strip())
+                servers.append(server)
+                # Register server with web dashboard (after init so server_name is available)
+                if WEB_DASHBOARD_ENABLED:
+                    logger.info(f"Web: Registering Emby server: {server.server_name}")
+                    app_state.add_server(
+                        name=server.server_name,
+                        server_type="Emby",
+                        status="connected",
+                        version=getattr(server, 'version', '')
+                    )
+                logger.info(f"Successfully connected to Emby server: {server.server_name}")
+            else:
+                raise Exception("Unknown server type")
+
+            logger.debug(f"{server_type} Server {i} info: {server.info()}")
+
+        except Exception as e:
+            logger.error(f"Failed to connect to {server_type.capitalize()} server at {base_url}: {e}")
+            # Register failed server in dashboard
             if WEB_DASHBOARD_ENABLED:
-                logger.info(f"Web: Registering Emby server: {server.server_name}")
                 app_state.add_server(
-                    name=server.server_name,
-                    server_type="Emby",
-                    status="connected",
-                    version=getattr(server, 'version', '')
+                    name=f"{server_type.capitalize()} ({base_url})",
+                    server_type=server_type.capitalize(),
+                    status="disconnected",
+                    version=""
                 )
-        else:
-            raise Exception("Unknown server type")
-
-        logger.debug(f"{server_type} Server {i} info: {server.info()}")
+            logger.warning(f"Continuing with remaining servers...")
 
     return servers
 
@@ -91,31 +108,47 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
             )
 
         for i, url in enumerate(plex_baseurl):
-            server = Plex(
-                env,
-                base_url=url.strip(),
-                token=plex_token[i].strip(),
-                user_name=None,
-                password=None,
-                server_name=None,
-                ssl_bypass=ssl_bypass,
-            )
-
-            logger.debug(f"Plex Server {i} info: {server.info()}")
-
-            # Register server with web dashboard
-            if WEB_DASHBOARD_ENABLED:
-                logger.info(f"Web: Registering Plex server: {server.plex.friendlyName}")
-                app_state.add_server(
-                    name=server.plex.friendlyName,
-                    server_type="Plex",
-                    status="connected",
-                    version=server.plex.version
+            try:
+                logger.info(f"Connecting to Plex server at {url.strip()}...")
+                server = Plex(
+                    env,
+                    base_url=url.strip(),
+                    token=plex_token[i].strip(),
+                    user_name=None,
+                    password=None,
+                    server_name=None,
+                    ssl_bypass=ssl_bypass,
                 )
 
-            # Backfill will be done after all servers are connected
+                logger.debug(f"Plex Server {i} info: {server.info()}")
 
-            servers.append(server)
+                # Register server with web dashboard
+                if WEB_DASHBOARD_ENABLED:
+                    logger.info(f"Web: Registering Plex server: {server.plex.friendlyName}")
+                    app_state.add_server(
+                        name=server.plex.friendlyName,
+                        server_type="Plex",
+                        status="connected",
+                        version=server.plex.version
+                    )
+
+                logger.info(f"Successfully connected to Plex server: {server.plex.friendlyName}")
+
+                # Backfill will be done after all servers are connected
+
+                servers.append(server)
+
+            except Exception as e:
+                logger.error(f"Failed to connect to Plex server at {url.strip()}: {e}")
+                # Register failed server in dashboard
+                if WEB_DASHBOARD_ENABLED:
+                    app_state.add_server(
+                        name=f"Plex ({url.strip()})",
+                        server_type="Plex",
+                        status="disconnected",
+                        version=""
+                    )
+                logger.warning(f"Continuing with remaining servers...")
 
     if plex_username_str and plex_password_str and plex_servername_str:
         plex_username = plex_username_str.split(",")
@@ -130,31 +163,47 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
             )
 
         for i, username in enumerate(plex_username):
-            server = Plex(
-                env,
-                base_url=None,
-                token=None,
-                user_name=username.strip(),
-                password=plex_password[i].strip(),
-                server_name=plex_servername[i].strip(),
-                ssl_bypass=ssl_bypass,
-            )
-
-            logger.debug(f"Plex Server {i} info: {server.info()}")
-
-            # Register server with web dashboard
-            if WEB_DASHBOARD_ENABLED:
-                logger.info(f"Web: Registering Plex server: {server.plex.friendlyName}")
-                app_state.add_server(
-                    name=server.plex.friendlyName,
-                    server_type="Plex",
-                    status="connected",
-                    version=server.plex.version
+            try:
+                logger.info(f"Connecting to Plex server '{plex_servername[i].strip()}' as user '{username.strip()}'...")
+                server = Plex(
+                    env,
+                    base_url=None,
+                    token=None,
+                    user_name=username.strip(),
+                    password=plex_password[i].strip(),
+                    server_name=plex_servername[i].strip(),
+                    ssl_bypass=ssl_bypass,
                 )
 
-            # Backfill will be done after all servers are connected
+                logger.debug(f"Plex Server {i} info: {server.info()}")
 
-            servers.append(server)
+                # Register server with web dashboard
+                if WEB_DASHBOARD_ENABLED:
+                    logger.info(f"Web: Registering Plex server: {server.plex.friendlyName}")
+                    app_state.add_server(
+                        name=server.plex.friendlyName,
+                        server_type="Plex",
+                        status="connected",
+                        version=server.plex.version
+                    )
+
+                logger.info(f"Successfully connected to Plex server: {server.plex.friendlyName}")
+
+                # Backfill will be done after all servers are connected
+
+                servers.append(server)
+
+            except Exception as e:
+                logger.error(f"Failed to connect to Plex server '{plex_servername[i].strip()}': {e}")
+                # Register failed server in dashboard
+                if WEB_DASHBOARD_ENABLED:
+                    app_state.add_server(
+                        name=f"Plex ({plex_servername[i].strip()})",
+                        server_type="Plex",
+                        status="disconnected",
+                        version=""
+                    )
+                logger.warning(f"Continuing with remaining servers...")
 
     jellyfin_baseurl = get_env_value(env, "JELLYFIN_BASEURL", None)
     jellyfin_token = get_env_value(env, "JELLYFIN_TOKEN", None)
@@ -179,23 +228,32 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
     tautulli_backfill_enabled = str_to_bool(get_env_value(env, "TAUTULLI_BACKFILL_ENABLED", "False"))
 
     if tautulli_backfill_enabled:
-        logger.info("All servers connected. Starting Tautulli backfill for Plex servers...")
-        total_backfill_count = 0
-        backfill_ran = False
+        try:
+            logger.info("All servers connected. Starting Tautulli backfill for Plex servers...")
+            total_backfill_count = 0
+            backfill_ran = False
 
-        for server in servers:
-            if isinstance(server, Plex):
-                if WEB_DASHBOARD_ENABLED:
-                    app_state.set_syncing(True, "Backfilling Tautulli")
-                count = server.backfill_all_users()
-                backfill_ran = True
-                if count and isinstance(count, int):
-                    total_backfill_count += count
+            for server in servers:
+                if isinstance(server, Plex):
+                    try:
+                        if WEB_DASHBOARD_ENABLED:
+                            app_state.set_syncing(True, "Backfilling Tautulli")
+                        count = server.backfill_all_users()
+                        backfill_ran = True
+                        if count and isinstance(count, int):
+                            total_backfill_count += count
+                    except Exception as e:
+                        logger.error(f"Tautulli backfill failed for server {server.plex.friendlyName}: {e}")
+                        logger.warning("Continuing with remaining servers...")
 
-        # Mark backfill as complete if it ran (even if no items were added)
-        if WEB_DASHBOARD_ENABLED and backfill_ran:
-            app_state.set_backfill_status(complete=True, count=total_backfill_count)
-            logger.info(f"Web: Backfill complete - {total_backfill_count} items added to Tautulli")
+            # Mark backfill as complete if it ran (even if no items were added)
+            if WEB_DASHBOARD_ENABLED and backfill_ran:
+                app_state.set_backfill_status(complete=True, count=total_backfill_count)
+                logger.info(f"Web: Backfill complete - {total_backfill_count} items added to Tautulli")
+        except Exception as e:
+            logger.error(f"Tautulli backfill process failed: {e}")
+            if WEB_DASHBOARD_ENABLED:
+                app_state.set_backfill_status(complete=True, count=0)
     else:
         logger.info("Tautulli backfill is disabled (TAUTULLI_BACKFILL_ENABLED=False)")
         if WEB_DASHBOARD_ENABLED:
