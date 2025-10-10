@@ -32,7 +32,8 @@
                         {% endfor %}
                     {% endif %}
                 </div>
-                <!-- Tautulli Badge -->
+                <!-- Tautulli Badge - Only show if enabled -->
+                {% if status.tautulli_enabled %}
                 <span class="server-badge tautulli-badge">
                     <span class="server-name">Tautulli</span>
                     {% if status.backfill_complete %}
@@ -43,6 +44,7 @@
                     <span class="status-dot pending"></span>
                     {% endif %}
                 </span>
+                {% endif %}
                 <!-- Last Sync Info -->
                 <span class="server-badge last-sync-badge">
                     <span class="server-name">Last Sync</span>

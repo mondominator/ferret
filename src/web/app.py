@@ -24,9 +24,19 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     """Main dashboard page."""
+    from dotenv import dotenv_values
+    from src.functions import get_env_value, str_to_bool
+
+    env_file = get_env_value(None, "ENV_FILE", ".env")
+    config = dotenv_values(env_file)
+    tautulli_enabled = str_to_bool(get_env_value(config, "TAUTULLI_BACKFILL_ENABLED", "False"))
+
+    status = app_state.get_status()
+    status["tautulli_enabled"] = tautulli_enabled
+
     return templates.TemplateResponse(
         "dashboard.html",
-        {"request": request, "status": app_state.get_status()}
+        {"request": request, "status": status}
     )
 
 
@@ -111,9 +121,19 @@ async def get_status_footer(request: Request):
 @app.get("/api/status/header", response_class=HTMLResponse)
 async def get_status_header(request: Request):
     """Get status header HTML for htmx updates."""
+    from dotenv import dotenv_values
+    from src.functions import get_env_value, str_to_bool
+
+    env_file = get_env_value(None, "ENV_FILE", ".env")
+    config = dotenv_values(env_file)
+    tautulli_enabled = str_to_bool(get_env_value(config, "TAUTULLI_BACKFILL_ENABLED", "False"))
+
+    status = app_state.get_status()
+    status["tautulli_enabled"] = tautulli_enabled
+
     return templates.TemplateResponse(
         "partials/status_header.html",
-        {"request": request, "status": app_state.get_status()}
+        {"request": request, "status": status}
     )
 
 

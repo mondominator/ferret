@@ -19,6 +19,12 @@
                 <label for="plex_token">API Token</label>
                 <input type="password" id="plex_token" name="plex_token" placeholder="Your Plex token" value="{{ config.get('PLEX_TOKEN', '') }}">
             </div>
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="ssl_bypass" name="ssl_bypass" {% if config.get('SSL_BYPASS', 'False') == 'True' %}checked{% endif %}>
+                    <span>Skip SSL certificate validation</span>
+                </label>
+            </div>
         </div>
 
         <!-- Jellyfin Settings -->
@@ -63,6 +69,78 @@
             </div>
         </div>
 
+        <!-- Sync Direction Settings -->
+        <div class="settings-section">
+            <h2>Sync Direction</h2>
+            <p class="subtitle" style="margin-bottom: 1rem;">Control which servers sync to which</p>
+
+            <div class="form-group">
+                <label>Plex Sync Direction</label>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_plex_to_jellyfin" {% if config.get('SYNC_FROM_PLEX_TO_JELLYFIN', 'False') == 'True' %}checked{% endif %}>
+                        <span>Plex → Jellyfin</span>
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_plex_to_plex" {% if config.get('SYNC_FROM_PLEX_TO_PLEX', 'False') == 'True' %}checked{% endif %}>
+                        <span>Plex → Plex</span>
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_plex_to_emby" {% if config.get('SYNC_FROM_PLEX_TO_EMBY', 'False') == 'True' %}checked{% endif %}>
+                        <span>Plex → Emby</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Jellyfin Sync Direction</label>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_jellyfin_to_plex" {% if config.get('SYNC_FROM_JELLYFIN_TO_PLEX', 'False') == 'True' %}checked{% endif %}>
+                        <span>Jellyfin → Plex</span>
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_jellyfin_to_jellyfin" {% if config.get('SYNC_FROM_JELLYFIN_TO_JELLYFIN', 'False') == 'True' %}checked{% endif %}>
+                        <span>Jellyfin → Jellyfin</span>
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_jellyfin_to_emby" {% if config.get('SYNC_FROM_JELLYFIN_TO_EMBY', 'False') == 'True' %}checked{% endif %}>
+                        <span>Jellyfin → Emby</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Emby Sync Direction</label>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_emby_to_plex" {% if config.get('SYNC_FROM_EMBY_TO_PLEX', 'False') == 'True' %}checked{% endif %}>
+                        <span>Emby → Plex</span>
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_emby_to_jellyfin" {% if config.get('SYNC_FROM_EMBY_TO_JELLYFIN', 'False') == 'True' %}checked{% endif %}>
+                        <span>Emby → Jellyfin</span>
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="sync_from_emby_to_emby" {% if config.get('SYNC_FROM_EMBY_TO_EMBY', 'False') == 'True' %}checked{% endif %}>
+                        <span>Emby → Emby</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <!-- General Settings -->
         <div class="settings-section">
             <h2>General Settings</h2>
@@ -74,6 +152,12 @@
                 <label>
                     <input type="checkbox" id="dryrun" name="dryrun" {% if config.get('DRYRUN', 'False') == 'True' %}checked{% endif %}>
                     <span>Dry Run Mode (test without making changes)</span>
+                </label>
+            </div>
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="run_only_once" name="run_only_once" {% if config.get('RUN_ONLY_ONCE', 'False') == 'True' %}checked{% endif %}>
+                    <span>Run only once and exit</span>
                 </label>
             </div>
             <div class="form-group">
@@ -88,6 +172,39 @@
                 <label for="user_mapping">User Mapping (JSON format)</label>
                 <textarea id="user_mapping" name="user_mapping" rows="4" placeholder='{"server1_user":"server2_user", "john":"john.doe"}'>{%- if config.get('USER_MAPPING') -%}{{ config.get('USER_MAPPING') }}{%- endif -%}</textarea>
                 <small class="form-help">Map usernames between servers. Format: {"source":"destination"}</small>
+            </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="settings-section">
+            <h2>Advanced Settings</h2>
+            <div class="form-group">
+                <label for="request_timeout">Request Timeout (seconds)</label>
+                <input type="number" id="request_timeout" name="request_timeout" placeholder="300" value="{{ config.get('REQUEST_TIMEOUT', '300') }}">
+            </div>
+            <div class="form-group">
+                <label for="max_threads">Max Threads</label>
+                <input type="number" id="max_threads" name="max_threads" placeholder="1" value="{{ config.get('MAX_THREADS', '1') }}">
+            </div>
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="generate_guids" name="generate_guids" {% if config.get('GENERATE_GUIDS', 'False') == 'True' %}checked{% endif %}>
+                    <span>Generate GUIDs (slower, use if servers have different files)</span>
+                </label>
+            </div>
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="generate_locations" name="generate_locations" {% if config.get('GENERATE_LOCATIONS', 'True') == 'True' %}checked{% endif %}>
+                    <span>Generate Locations (faster, use if servers share files)</span>
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="log_file">Log File Path</label>
+                <input type="text" id="log_file" name="log_file" placeholder="log.log" value="{{ config.get('LOG_FILE', 'log.log') }}">
+            </div>
+            <div class="form-group">
+                <label for="mark_file">Mark File Path</label>
+                <input type="text" id="mark_file" name="mark_file" placeholder="mark.log" value="{{ config.get('MARK_FILE', 'mark.log') }}">
             </div>
         </div>
     </div>
@@ -105,16 +222,33 @@
         const formData = {
             PLEX_BASEURL: document.getElementById('plex_baseurl').value,
             PLEX_TOKEN: document.getElementById('plex_token').value,
+            SSL_BYPASS: document.getElementById('ssl_bypass').checked ? 'True' : 'False',
             JELLYFIN_BASEURL: document.getElementById('jellyfin_baseurl').value,
             JELLYFIN_TOKEN: document.getElementById('jellyfin_token').value,
             EMBY_BASEURL: document.getElementById('emby_baseurl').value,
             EMBY_TOKEN: document.getElementById('emby_token').value,
             TAUTULLI_DB_PATH: document.getElementById('tautulli_db_path').value,
             TAUTULLI_BACKFILL_ENABLED: document.getElementById('tautulli_backfill_enabled').checked ? 'True' : 'False',
+            SYNC_FROM_PLEX_TO_JELLYFIN: document.getElementById('sync_from_plex_to_jellyfin').checked ? 'True' : 'False',
+            SYNC_FROM_PLEX_TO_PLEX: document.getElementById('sync_from_plex_to_plex').checked ? 'True' : 'False',
+            SYNC_FROM_PLEX_TO_EMBY: document.getElementById('sync_from_plex_to_emby').checked ? 'True' : 'False',
+            SYNC_FROM_JELLYFIN_TO_PLEX: document.getElementById('sync_from_jellyfin_to_plex').checked ? 'True' : 'False',
+            SYNC_FROM_JELLYFIN_TO_JELLYFIN: document.getElementById('sync_from_jellyfin_to_jellyfin').checked ? 'True' : 'False',
+            SYNC_FROM_JELLYFIN_TO_EMBY: document.getElementById('sync_from_jellyfin_to_emby').checked ? 'True' : 'False',
+            SYNC_FROM_EMBY_TO_PLEX: document.getElementById('sync_from_emby_to_plex').checked ? 'True' : 'False',
+            SYNC_FROM_EMBY_TO_JELLYFIN: document.getElementById('sync_from_emby_to_jellyfin').checked ? 'True' : 'False',
+            SYNC_FROM_EMBY_TO_EMBY: document.getElementById('sync_from_emby_to_emby').checked ? 'True' : 'False',
             SLEEP_DURATION: document.getElementById('sleep_duration').value,
             DRYRUN: document.getElementById('dryrun').checked ? 'True' : 'False',
+            RUN_ONLY_ONCE: document.getElementById('run_only_once').checked ? 'True' : 'False',
             DEBUG_LEVEL: document.getElementById('debug_level').value,
-            USER_MAPPING: document.getElementById('user_mapping').value
+            USER_MAPPING: document.getElementById('user_mapping').value,
+            REQUEST_TIMEOUT: document.getElementById('request_timeout').value,
+            MAX_THREADS: document.getElementById('max_threads').value,
+            GENERATE_GUIDS: document.getElementById('generate_guids').checked ? 'True' : 'False',
+            GENERATE_LOCATIONS: document.getElementById('generate_locations').checked ? 'True' : 'False',
+            LOG_FILE: document.getElementById('log_file').value,
+            MARK_FILE: document.getElementById('mark_file').value
         };
 
         try {
