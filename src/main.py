@@ -212,14 +212,15 @@ def main_loop(env) -> None:
 
         # Start server_2 at the next server in the list
         for server_2 in servers[servers.index(server_1) + 1 :]:
-            # Check if server 1 and server 2 are going to be synced in either direction, skip if not
-            if not should_sync_server(
-                env, server_1, server_2
-            ) and not should_sync_server(env, server_2, server_1):
-                continue
+            try:
+                # Check if server 1 and server 2 are going to be synced in either direction, skip if not
+                if not should_sync_server(
+                    env, server_1, server_2
+                ) and not should_sync_server(env, server_2, server_1):
+                    continue
 
-            logger.info(f"Server 1: {type(server_1)}: {server_1.info()}")
-            logger.info(f"Server 2: {type(server_2)}: {server_2.info()}")
+                logger.info(f"Server 1: {type(server_1)}: {server_1.info()}")
+                logger.info(f"Server 2: {type(server_2)}: {server_2.info()}")
 
             if web_dashboard_enabled:
                 # Get short server names for display
@@ -306,6 +307,19 @@ def main_loop(env) -> None:
                     library_mapping,
                     dryrun,
                 )
+
+            except Exception as e:
+                # Get server names for error message
+                s1_name = "Unknown"
+                s2_name = "Unknown"
+                try:
+                    s1_name = server_1.info(name_only=True) if hasattr(server_1, 'info') and isinstance(server_1, (Jellyfin, Emby)) else server_1.plex.friendlyName
+                    s2_name = server_2.info(name_only=True) if hasattr(server_2, 'info') and isinstance(server_2, (Jellyfin, Emby)) else server_2.plex.friendlyName
+                except:
+                    pass
+
+                logger.error(f"Sync failed between {s1_name} and {s2_name}: {e}")
+                logger.warning(f"Continuing with remaining server pairs...")
 
     # Mark sync as complete
     if web_dashboard_enabled:
