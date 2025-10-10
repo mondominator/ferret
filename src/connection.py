@@ -175,22 +175,30 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
         servers.extend(emby_servers)
 
     # Now backfill Tautulli for all Plex servers (after all connections are established)
-    logger.info("All servers connected. Starting Tautulli backfill for Plex servers...")
-    total_backfill_count = 0
-    backfill_ran = False
+    # Only run if TAUTULLI_BACKFILL_ENABLED is True
+    tautulli_backfill_enabled = str_to_bool(get_env_value(env, "TAUTULLI_BACKFILL_ENABLED", "True"))
 
-    for server in servers:
-        if isinstance(server, Plex):
-            if WEB_DASHBOARD_ENABLED:
-                app_state.set_syncing(True, "Backfilling Tautulli")
-            count = server.backfill_all_users()
-            backfill_ran = True
-            if count and isinstance(count, int):
-                total_backfill_count += count
+    if tautulli_backfill_enabled:
+        logger.info("All servers connected. Starting Tautulli backfill for Plex servers...")
+        total_backfill_count = 0
+        backfill_ran = False
 
-    # Mark backfill as complete if it ran (even if no items were added)
-    if WEB_DASHBOARD_ENABLED and backfill_ran:
-        app_state.set_backfill_status(complete=True, count=total_backfill_count)
-        logger.info(f"Web: Backfill complete - {total_backfill_count} items added to Tautulli")
+        for server in servers:
+            if isinstance(server, Plex):
+                if WEB_DASHBOARD_ENABLED:
+                    app_state.set_syncing(True, "Backfilling Tautulli")
+                count = server.backfill_all_users()
+                backfill_ran = True
+                if count and isinstance(count, int):
+                    total_backfill_count += count
+
+        # Mark backfill as complete if it ran (even if no items were added)
+        if WEB_DASHBOARD_ENABLED and backfill_ran:
+            app_state.set_backfill_status(complete=True, count=total_backfill_count)
+            logger.info(f"Web: Backfill complete - {total_backfill_count} items added to Tautulli")
+    else:
+        logger.info("Tautulli backfill is disabled (TAUTULLI_BACKFILL_ENABLED=False)")
+        if WEB_DASHBOARD_ENABLED:
+            app_state.set_backfill_status(complete=True, count=0)
 
     return servers

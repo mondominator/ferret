@@ -47,6 +47,22 @@
             </div>
         </div>
 
+        <!-- Tautulli Settings -->
+        <div class="settings-section">
+            <h2>Tautulli Integration</h2>
+            <div class="form-group">
+                <label for="tautulli_db_path">Database Path</label>
+                <input type="text" id="tautulli_db_path" name="tautulli_db_path" placeholder="/tautulli-data/tautulli.db" value="{{ config.get('TAUTULLI_DB_PATH', '') }}">
+                <small class="form-help">Path to tautulli.db file, or "test" for test mode</small>
+            </div>
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="tautulli_backfill_enabled" name="tautulli_backfill_enabled" {% if config.get('TAUTULLI_BACKFILL_ENABLED', 'True') == 'True' %}checked{% endif %}>
+                    <span>Enable Tautulli Backfill (runs once on startup)</span>
+                </label>
+            </div>
+        </div>
+
         <!-- General Settings -->
         <div class="settings-section">
             <h2>General Settings</h2>
@@ -93,6 +109,8 @@
             JELLYFIN_TOKEN: document.getElementById('jellyfin_token').value,
             EMBY_BASEURL: document.getElementById('emby_baseurl').value,
             EMBY_TOKEN: document.getElementById('emby_token').value,
+            TAUTULLI_DB_PATH: document.getElementById('tautulli_db_path').value,
+            TAUTULLI_BACKFILL_ENABLED: document.getElementById('tautulli_backfill_enabled').checked ? 'True' : 'False',
             SLEEP_DURATION: document.getElementById('sleep_duration').value,
             DRYRUN: document.getElementById('dryrun').checked ? 'True' : 'False',
             DEBUG_LEVEL: document.getElementById('debug_level').value,
