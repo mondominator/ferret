@@ -147,11 +147,17 @@
     // Detect manual scrolling
     document.getElementById('logs-container').addEventListener('scroll', (e) => {
         const container = e.target;
-        const isAtBottom = container.scrollHeight - container.scrollTop === container.clientHeight;
+        // Use threshold for better detection across different screen sizes
+        const isAtBottom = Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 5;
         autoScroll = isAtBottom;
     });
 
     // Connect WebSocket on page load
     connectWebSocket();
+
+    // Initial scroll to bottom on page load
+    setTimeout(() => {
+        scrollToBottom();
+    }, 100);
 </script>
 {% endblock %}
