@@ -176,7 +176,7 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
 
     # Now backfill Tautulli for all Plex servers (after all connections are established)
     # Only run if TAUTULLI_BACKFILL_ENABLED is True
-    tautulli_backfill_enabled = str_to_bool(get_env_value(env, "TAUTULLI_BACKFILL_ENABLED", "True"))
+    tautulli_backfill_enabled = str_to_bool(get_env_value(env, "TAUTULLI_BACKFILL_ENABLED", "False"))
 
     if tautulli_backfill_enabled:
         logger.info("All servers connected. Starting Tautulli backfill for Plex servers...")

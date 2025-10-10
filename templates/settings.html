@@ -57,7 +57,7 @@
             </div>
             <div class="form-group checkbox-group">
                 <label>
-                    <input type="checkbox" id="tautulli_backfill_enabled" name="tautulli_backfill_enabled" {% if config.get('TAUTULLI_BACKFILL_ENABLED', 'True') == 'True' %}checked{% endif %}>
+                    <input type="checkbox" id="tautulli_backfill_enabled" name="tautulli_backfill_enabled" {% if config.get('TAUTULLI_BACKFILL_ENABLED', 'False') == 'True' %}checked{% endif %}>
                     <span>Enable Tautulli Backfill (runs once on startup)</span>
                 </label>
             </div>
