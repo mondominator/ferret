@@ -8,9 +8,10 @@ from math import floor
 from requests.adapters import HTTPAdapter as RequestsHTTPAdapter
 
 from plexapi.video import Show, Episode, Movie
+from plexapi.audio import Artist, Track, Album
 from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexAccount, MyPlexUser
-from plexapi.library import MovieSection, ShowSection
+from plexapi.library import MovieSection, ShowSection, MusicSection
 
 from src.functions import (
     filename_from_any_path,
@@ -348,7 +349,7 @@ class Plex:
                 library_title = library.title
                 library_type = library.type
 
-                if library_type not in ["movie", "show"]:
+                if library_type not in ["movie", "show", "artist"]:
                     logger.debug(
                         f"Plex: Skipping Library {library_title} found type {library_type}",
                     )
@@ -362,7 +363,7 @@ class Plex:
             raise Exception(e)
 
     def get_user_library_watched(
-        self, user_name: str, user_plex: PlexServer, library: MovieSection | ShowSection
+        self, user_name: str, user_plex: PlexServer, library: MovieSection | ShowSection | MusicSection
     ) -> LibraryData:
         try:
             logger.info(
@@ -431,6 +432,54 @@ class Plex:
                                     tmdb_id=show_guids.get("tmdb"),
                                 ),
                                 episodes=episode_mediaitem,
+                            )
+                        )
+
+            elif library.type == "artist":
+                # Handle audiobooks (stored as artist type in Plex)
+                # Keep track of processed artists to reduce duplicates
+                processed_artists = []
+                for artist in library_videos.search(
+                    unwatched=False
+                ) + library_videos.search(inProgress=True):
+                    if artist.key in processed_artists:
+                        continue
+                    processed_artists.append(artist.key)
+                    artist_guids = extract_guids_from_item(artist, self.generate_guids)
+                    track_mediaitem = []
+
+                    # Fetch watched or partially watched tracks
+                    for track in artist.tracks():
+                        if track.isWatched or (hasattr(track, 'viewOffset') and track.viewOffset >= 60000):
+                            track_mediaitem.append(
+                                get_mediaitem(
+                                    track,
+                                    track.isWatched,
+                                    self.generate_guids,
+                                    self.generate_locations,
+                                )
+                            )
+
+                    if track_mediaitem:
+                        watched.series.append(
+                            Series(
+                                identifiers=MediaIdentifiers(
+                                    title=artist.title,
+                                    locations=(
+                                        tuple(
+                                            [
+                                                filename_from_any_path(location)
+                                                for location in (artist.locations if hasattr(artist, 'locations') else [])
+                                            ]
+                                        )
+                                        if self.generate_locations
+                                        else tuple()
+                                    ),
+                                    imdb_id=artist_guids.get("imdb"),
+                                    tvdb_id=artist_guids.get("tvdb"),
+                                    tmdb_id=artist_guids.get("tmdb"),
+                                ),
+                                episodes=track_mediaitem,
                             )
                         )
 
