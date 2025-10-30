@@ -288,7 +288,7 @@ class JellyfinEmby:
                             "movies" if library_type == "Movie" else "tvshows"
                         )
 
-                    if library_type not in ["movies", "tvshows"]:
+                    if library_type not in ["movies", "tvshows", "audiobooks"]:
                         logger.debug(
                             f"{self.server_type}: Skipping Library {library_title} found type {library_type}",
                         )
@@ -305,7 +305,7 @@ class JellyfinEmby:
         self,
         user_name: str,
         user_id: str,
-        library_type: Literal["movies", "tvshows"],
+        library_type: Literal["movies", "tvshows", "audiobooks"],
         library_id: str,
         library_title: str,
     ) -> LibraryData:
@@ -460,6 +460,108 @@ class JellyfinEmby:
                                     tmdb_id=show_guids.get("tmdb"),
                                 ),
                                 episodes=episode_mediaitem,
+                            )
+                        )
+
+            # Audiobooks
+            if library_type == "audiobooks":
+                # Retrieve a list of audiobooks (stored as MusicAlbum in Emby)
+                all_books = self.query(
+                    f"/Users/{user_id}/Items"
+                    + f"?ParentId={library_id}&isPlaceHolder=false&IncludeItemTypes=MusicAlbum&Recursive=True&Fields=ProviderIds,Path,RecursiveItemCount",
+                    "get",
+                )
+
+                if not all_books or not isinstance(all_books, dict):
+                    logger.debug(
+                        f"{self.server_type}: Failed to get audiobooks for {user_name} in {library_title}"
+                    )
+                    return watched
+
+                # Filter the list of audiobooks to only include those that have been partially or fully played
+                played_books_filtered = []
+                for book in all_books.get("Items", []):
+                    if not book.get("UserData"):
+                        continue
+
+                    played_percentage = book["UserData"].get("PlayedPercentage")
+                    if played_percentage is None:
+                        # Check if any track has been played
+                        total_tracks = book.get("RecursiveItemCount")
+                        unplayed_tracks = book["UserData"].get("UnplayedItemCount")
+
+                        if total_tracks is None:
+                            continue
+
+                        if (
+                            unplayed_tracks is not None
+                            and unplayed_tracks < total_tracks
+                        ):
+                            played_books_filtered.append(book)
+                    else:
+                        if played_percentage > 0:
+                            played_books_filtered.append(book)
+
+                # Retrieve the played/partially played list of tracks of each audiobook
+                for book in played_books_filtered:
+                    book_name = book.get("Name")
+                    book_guids = {
+                        k.lower(): v for k, v in book.get("ProviderIds", {}).items()
+                    }
+                    book_locations = (
+                        tuple([filename_from_any_path(book["Path"])])
+                        if book.get("Path")
+                        else tuple()
+                    )
+
+                    book_tracks = self.query(
+                        f"/Users/{user_id}/Items"
+                        + f"?ParentId={book.get('Id')}&IncludeItemTypes=Audio&isPlaceHolder=false&Fields=ProviderIds,MediaSources,UserDataLastPlayedDate",
+                        "get",
+                    )
+
+                    if not book_tracks or not isinstance(book_tracks, dict):
+                        logger.debug(
+                            f"{self.server_type}: Failed to get tracks for {user_name} {library_title} {book_name}"
+                        )
+                        continue
+
+                    # Iterate through the tracks
+                    # Create a list to store the tracks
+                    track_mediaitem = []
+                    for track in book_tracks.get("Items", []):
+                        if not track.get("UserData"):
+                            continue
+
+                        if not track.get("MediaSources"):
+                            continue
+
+                        # If played or played more than a minute
+                        if (
+                            track["UserData"].get("Played")
+                            or track["UserData"].get("PlaybackPositionTicks", 0)
+                            > 600000000
+                        ):
+                            track_mediaitem.append(
+                                get_mediaitem(
+                                    self.server_type,
+                                    track,
+                                    self.generate_guids,
+                                    self.generate_locations,
+                                )
+                            )
+
+                    if track_mediaitem:
+                        watched.series.append(
+                            Series(
+                                identifiers=MediaIdentifiers(
+                                    title=book.get("Name"),
+                                    locations=book_locations,
+                                    imdb_id=book_guids.get("imdb"),
+                                    tvdb_id=book_guids.get("tvdb"),
+                                    tmdb_id=book_guids.get("tmdb"),
+                                ),
+                                episodes=track_mediaitem,
                             )
                         )
 
