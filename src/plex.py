@@ -8,10 +8,9 @@ from math import floor
 from requests.adapters import HTTPAdapter as RequestsHTTPAdapter
 
 from plexapi.video import Show, Episode, Movie
-from plexapi.audio import Artist, Track, Album
 from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexAccount, MyPlexUser
-from plexapi.library import MovieSection, ShowSection, MusicSection
+from plexapi.library import MovieSection, ShowSection
 
 from src.functions import (
     filename_from_any_path,
@@ -47,14 +46,10 @@ class HostNameIgnoringAdapter(RequestsHTTPAdapter):
 
 
 def extract_guids_from_item(
-    item: Movie | Show | Episode | Artist | Album | Track, generate_guids: bool
+    item: Movie | Show | Episode, generate_guids: bool
 ) -> dict[str, str]:
     # If GENERATE_GUIDS is set to False, then return an empty dict
     if not generate_guids:
-        return {}
-
-    # Check if the item has guids attribute (some audio items may not)
-    if not hasattr(item, 'guids') or not item.guids:
         return {}
 
     guids: dict[str, str] = dict(
@@ -67,14 +62,14 @@ def extract_guids_from_item(
 
 
 def extract_identifiers_from_item(
-    item: Movie | Show | Episode | Artist | Album | Track,
+    item: Movie | Show | Episode,
     generate_guids: bool,
     generate_locations: bool,
 ) -> MediaIdentifiers:
     guids = extract_guids_from_item(item, generate_guids)
     locations = (
         tuple([filename_from_any_path(loc) for loc in item.locations])
-        if generate_locations and hasattr(item, 'locations') and item.locations
+        if generate_locations
         else tuple()
     )
 
@@ -100,7 +95,7 @@ def extract_identifiers_from_item(
 
 
 def get_mediaitem(
-    item: Movie | Episode | Track,
+    item: Movie | Episode,
     completed: bool,
     generate_guids: bool = True,
     generate_locations: bool = True,
@@ -122,7 +117,7 @@ def get_mediaitem(
 
 
 def mark_watched_with_timeline(
-    item: Movie | Episode | Track,
+    item: Movie | Episode,
     user_plex: PlexServer,
     watch_time: int | None = None,
     tautulli_logger: TautulliLogger | None = None,
@@ -134,7 +129,7 @@ def mark_watched_with_timeline(
     Mark an item as watched using Plex's timeline/scrobble API and optionally log to Tautulli.
 
     Args:
-        item: The Movie, Episode, or Track to mark as watched
+        item: The Movie or Episode to mark as watched
         user_plex: The PlexServer instance for the user
         watch_time: Optional partial watch time in milliseconds. If None, marks as fully watched.
         tautulli_logger: Optional TautulliLogger instance for history logging
@@ -353,7 +348,7 @@ class Plex:
                 library_title = library.title
                 library_type = library.type
 
-                if library_type not in ["movie", "show", "artist"]:
+                if library_type not in ["movie", "show"]:
                     logger.debug(
                         f"Plex: Skipping Library {library_title} found type {library_type}",
                     )
@@ -367,7 +362,7 @@ class Plex:
             raise Exception(e)
 
     def get_user_library_watched(
-        self, user_name: str, user_plex: PlexServer, library: MovieSection | ShowSection | MusicSection
+        self, user_name: str, user_plex: PlexServer, library: MovieSection | ShowSection
     ) -> LibraryData:
         try:
             logger.info(
@@ -436,62 +431,6 @@ class Plex:
                                     tmdb_id=show_guids.get("tmdb"),
                                 ),
                                 episodes=episode_mediaitem,
-                            )
-                        )
-
-            elif library.type == "artist":
-                # Handle audiobooks (stored as artist type in Plex)
-                # Keep track of processed artists to reduce duplicates
-                processed_artists = []
-                # Artist libraries don't support unwatched/inProgress filters, so fetch all and filter manually
-                for artist in library_videos.all():
-                    if artist.key in processed_artists:
-                        continue
-
-                    # Check if artist has any watched or in-progress tracks
-                    has_watched_content = False
-                    track_mediaitem = []
-
-                    # Fetch watched or partially watched tracks
-                    for track in artist.tracks():
-                        if track.isWatched or (hasattr(track, 'viewOffset') and track.viewOffset >= 60000):
-                            has_watched_content = True
-                            track_mediaitem.append(
-                                get_mediaitem(
-                                    track,
-                                    track.isWatched,
-                                    self.generate_guids,
-                                    self.generate_locations,
-                                )
-                            )
-
-                    # Only process this artist if it has watched content
-                    if not has_watched_content:
-                        continue
-
-                    processed_artists.append(artist.key)
-                    artist_guids = extract_guids_from_item(artist, self.generate_guids)
-
-                    if track_mediaitem:
-                        watched.series.append(
-                            Series(
-                                identifiers=MediaIdentifiers(
-                                    title=artist.title,
-                                    locations=(
-                                        tuple(
-                                            [
-                                                filename_from_any_path(location)
-                                                for location in (artist.locations if hasattr(artist, 'locations') else [])
-                                            ]
-                                        )
-                                        if self.generate_locations
-                                        else tuple()
-                                    ),
-                                    imdb_id=artist_guids.get("imdb"),
-                                    tvdb_id=artist_guids.get("tvdb"),
-                                    tmdb_id=artist_guids.get("tmdb"),
-                                ),
-                                episodes=track_mediaitem,
                             )
                         )
 
@@ -684,14 +623,10 @@ class Plex:
                         # Once matched, no need to check further.
                         break
 
-        # Update TV Shows (series/episodes) and audiobooks (artist/tracks).
+        # Update TV Shows (series/episodes).
         if library_data.series:
             # For each Plex show in the library section:
-            # Artist libraries don't support the unwatched filter, so use .all() for those
-            if library_section.type == "artist":
-                plex_shows = library_section.all()
-            else:
-                plex_shows = library_section.search(unwatched=True)
+            plex_shows = library_section.search(unwatched=True)
             for plex_show in plex_shows:
                 # Extract identifiers from the Plex show.
                 plex_show_identifiers = extract_identifiers_from_item(
@@ -703,12 +638,9 @@ class Plex:
                         plex_show_identifiers, stored_series.identifiers
                     ):
                         logger.trace(f"Found matching show for '{plex_show.title}'")
-                        # Now update episodes/tracks.
-                        # Get the list of Plex episodes (or tracks for audiobooks).
-                        if library_section.type == "artist":
-                            plex_episodes = plex_show.tracks()
-                        else:
-                            plex_episodes = plex_show.episodes()
+                        # Now update episodes.
+                        # Get the list of Plex episodes for this show.
+                        plex_episodes = plex_show.episodes()
                         for plex_episode in plex_episodes:
                             plex_episode_identifiers = extract_identifiers_from_item(
                                 plex_episode,
