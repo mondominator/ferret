@@ -31,12 +31,14 @@ async def dashboard(request: Request):
     config = dotenv_values(env_file)
     tautulli_enabled = str_to_bool(get_env_value(config, "TAUTULLI_BACKFILL_ENABLED", "False"))
 
+    cleanup_enabled = str_to_bool(get_env_value(config, "CLEANUP_ENABLED", "False"))
+
     status = app_state.get_status()
     status["tautulli_enabled"] = tautulli_enabled
 
     return templates.TemplateResponse(
         "dashboard.html",
-        {"request": request, "status": status}
+        {"request": request, "status": status, "cleanup_enabled": cleanup_enabled}
     )
 
 
@@ -205,6 +207,23 @@ async def get_status_header(request: Request):
     return templates.TemplateResponse(
         "partials/status_header.html",
         {"request": request, "status": status}
+    )
+
+
+@app.get("/api/cleanup", response_class=HTMLResponse)
+async def get_cleanup_card(request: Request):
+    """Get cleanup results card HTML for htmx updates."""
+    from dotenv import dotenv_values
+    from src.functions import get_env_value, str_to_bool
+
+    env_file = get_env_value(None, "ENV_FILE", ".env")
+    config = dotenv_values(env_file)
+    cleanup_enabled = str_to_bool(get_env_value(config, "CLEANUP_ENABLED", "False"))
+
+    status = app_state.get_status()
+    return templates.TemplateResponse(
+        "partials/cleanup_card.html",
+        {"request": request, "status": status, "cleanup_enabled": cleanup_enabled}
     )
 
 
