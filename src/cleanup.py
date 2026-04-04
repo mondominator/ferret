@@ -890,8 +890,8 @@ class CleanupEngine:
                         if days_since < rule.max_age_days:
                             continue
                     else:
-                        # Never watched on any server -- this always exceeds max_age
-                        pass
+                        # Never watched — skip, the "Never Watched" rule handles these
+                        continue
 
                 # Re-calculate days_since for the flagged item (needed for both branches)
                 last_viewed = item_data["last_viewed"]
