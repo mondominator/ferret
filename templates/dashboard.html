@@ -4,11 +4,14 @@
 {% block nav_settings %}{% endblock %}
 
 {% block content %}
-<div class="max-w-xl mx-auto w-full py-6 sm:py-10 space-y-6">
+<div class="max-w-3xl mx-auto w-full py-4 sm:py-6 space-y-5">
 
-    <!-- Status + Sync Button -->
-    <div class="flex items-center justify-between">
-        <div id="sync-status"
+    <!-- ============================================================ -->
+    <!-- TOP: Compact status strip                                     -->
+    <!-- ============================================================ -->
+    <div class="flex items-center justify-between flex-wrap gap-2 px-1">
+        <div class="flex items-center gap-4 flex-wrap"
+             id="sync-status"
              hx-get="/api/status/badge"
              hx-trigger="every 3s"
              hx-swap="innerHTML">
@@ -20,78 +23,72 @@
             {% elif status.last_sync_time %}
             <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
-                <span class="text-sm text-white/60">Last sync {{ status.last_sync_time }}</span>
+                <span class="text-sm text-white/40">Synced {{ status.last_sync_time }}</span>
             </div>
             {% else %}
             <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full bg-white/20"></div>
-                <span class="text-sm text-white/50">No syncs yet</span>
+                <span class="text-sm text-white/30">No syncs yet</span>
             </div>
             {% endif %}
         </div>
 
-        <button hx-post="/api/sync/trigger" hx-swap="none"
-            {% if status.is_syncing %}disabled{% endif %}
-            class="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-xs font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer disabled:cursor-not-allowed active:scale-95">
-            Sync Now
-        </button>
+        <div class="flex items-center gap-3">
+            {% if status.servers %}
+            <span class="text-xs text-white/30 tabular-nums">{{ status.servers|length }} server{{ 's' if status.servers|length != 1 else '' }}</span>
+            {% endif %}
+            {% if status.total_users > 0 %}
+            <span class="text-xs text-white/30 tabular-nums">{{ status.total_users }} user{{ 's' if status.total_users != 1 else '' }}</span>
+            {% endif %}
+
+            <button hx-post="/api/sync/trigger" hx-swap="none"
+                {% if status.is_syncing %}disabled{% endif %}
+                class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-[11px] font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer disabled:cursor-not-allowed active:scale-95">
+                Sync Now
+            </button>
+        </div>
     </div>
 
-    <!-- Servers -->
-    <div class="space-y-0">
+    <!-- Server dots (inline, compact) -->
+    {% if status.servers %}
+    <div class="flex items-center gap-3 px-1 flex-wrap">
         {% for name, server in status.servers.items() %}
-        <div class="flex items-center justify-between py-3 {% if not loop.last %}border-b border-white/5{% endif %}">
-            <div class="flex items-center gap-3">
-                <div class="w-2 h-2 rounded-full {% if server.status == 'connected' %}bg-teal-500{% else %}bg-red-500{% endif %}"></div>
-                <div>
-                    <span class="text-sm font-medium text-white">{{ name }}</span>
-                    <span class="text-xs text-white/50 ml-2">{{ server.type }}</span>
-                </div>
-            </div>
-            {% if server.version %}
-            <span class="text-[11px] text-white/60 font-mono">{{ server.version }}</span>
-            {% endif %}
+        <div class="flex items-center gap-1.5">
+            <div class="w-1.5 h-1.5 rounded-full {% if server.status == 'connected' %}bg-teal-500{% else %}bg-red-500{% endif %}"></div>
+            <span class="text-[11px] text-white/50">{{ name }}</span>
         </div>
         {% endfor %}
-
-        {% if not status.servers %}
-        <p class="text-white/50 text-sm text-center py-6">No servers connected</p>
-        {% endif %}
-    </div>
-
-    <!-- Stats (only show when there's data) -->
-    {% if status.sync_count > 0 %}
-    <div class="flex gap-6 justify-center py-2">
-        <div class="text-center">
-            <span class="block text-2xl font-bold text-white tabular-nums">{{ status.sync_count }}</span>
-            <span class="block text-[10px] text-white/50 uppercase tracking-widest">syncs</span>
-        </div>
-        <div class="text-center">
-            <span class="block text-2xl font-bold text-white tabular-nums">{{ status.total_items_synced }}</span>
-            <span class="block text-[10px] text-white/50 uppercase tracking-widest">items</span>
-        </div>
-        <div class="text-center">
-            <span class="block text-2xl font-bold text-white tabular-nums">{{ status.total_users }}</span>
-            <span class="block text-[10px] text-white/50 uppercase tracking-widest">users</span>
-        </div>
     </div>
     {% endif %}
 
-    <!-- Cleanup -->
-    {% include "partials/cleanup_card.html" %}
+    <!-- ============================================================ -->
+    <!-- MAIN: Cleanup dashboard                                       -->
+    <!-- ============================================================ -->
+    <div id="cleanup-section"
+         hx-get="/api/cleanup"
+         hx-trigger="every 10s"
+         hx-swap="innerHTML">
+        {% include "partials/cleanup_card.html" %}
+    </div>
 
-    <!-- Activity -->
-    <div>
-        <div class="flex items-center gap-2 mb-3">
+    <!-- ============================================================ -->
+    <!-- BOTTOM: Collapsible activity log                              -->
+    <!-- ============================================================ -->
+    <details class="group">
+        <summary class="flex items-center gap-2 cursor-pointer select-none px-1 py-2 hover:bg-white/[0.02] rounded-sm transition-colors">
+            <svg class="w-3 h-3 text-white/30 transition-transform group-open:rotate-90" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+            </svg>
             <div class="live-dot"></div>
-            <span class="text-[10px] text-white/25 uppercase tracking-widest font-semibold">Activity</span>
-        </div>
-        <div id="activity-feed" class="max-h-[50vh] overflow-y-auto rounded-sm bg-[#050505] border border-white/5">
+            <span class="text-[10px] text-white/25 uppercase tracking-widest font-semibold">Activity Log</span>
+        </summary>
+
+        <div id="activity-feed" class="mt-2 max-h-[40vh] overflow-y-auto rounded-sm bg-[#050505] border border-white/5">
             <div id="activity-content" class="p-3 space-y-0.5 font-mono text-[12px] leading-relaxed">
                 <p class="text-white/10 text-center py-8">Waiting for activity...</p>
             </div>
         </div>
-    </div>
+    </details>
 </div>
 {% endblock %}
 
@@ -107,6 +104,7 @@ function connectWebSocket() {
 
     ws.onmessage = (event) => {
         const feed = document.getElementById('activity-content');
+        if (!feed) return;
         const text = event.data;
 
         if (text.includes('| DEBUG    |') || text.includes('| TRACE    |')) return;
@@ -157,5 +155,40 @@ function connectWebSocket() {
     };
 }
 connectWebSocket();
+
+/* Exclude button handler (delegated) */
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-exclude-title]');
+    if (!btn) return;
+    e.preventDefault();
+    const title = btn.getAttribute('data-exclude-title');
+    if (!confirm('Exclude "' + title + '" from cleanup? This adds it to the permanent exclusion list.')) return;
+
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    fetch('/api/cleanup/exclude', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title: title})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            /* Refresh cleanup card */
+            htmx.trigger('#cleanup-section', 'htmx:trigger');
+        } else {
+            showToast(data.message, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Exclude';
+        }
+    })
+    .catch(() => {
+        showToast('Failed to exclude item', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Exclude';
+    });
+});
 </script>
 {% endblock %}

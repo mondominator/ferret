@@ -34,6 +34,9 @@ class AppState:
         # Cleanup results
         self.cleanup_results: Optional[dict] = None
 
+        # Cleanup persistent state reference (set by cleanup engine)
+        self._cleanup_state = None
+
         # Recent logs (keep last 1000 lines)
         self.recent_logs = deque(maxlen=1000)
 
@@ -102,14 +105,22 @@ class AppState:
         with self._lock:
             self.cleanup_results = results
 
+    def set_cleanup_state(self, cleanup_state):
+        """Store reference to the CleanupState object for exclusions."""
+        with self._lock:
+            self._cleanup_state = cleanup_state
+
+    def get_cleanup_state(self):
+        """Get the CleanupState object."""
+        with self._lock:
+            return self._cleanup_state
+
     def get_status(self) -> dict:
         """Get current application status."""
         with self._lock:
             # Format last_sync_time to be human readable in local time
             last_sync_formatted = None
             if self.last_sync_time:
-                # Get timezone offset from TZ env var or default to UTC
-                # Docker containers often need TZ env var set to show correct local time
                 last_sync_formatted = self.last_sync_time.strftime("%b %d, %I:%M %p").lstrip('0')
 
             return {
