@@ -121,8 +121,10 @@
                         <span>Not watched in {{ item.days_since_watched }}d — last on {{ item.last_watched_server }}</span>
                         {% elif item.seerr_requested %}
                         <span class="text-red-400/60">Requested but never watched</span>
+                        {% elif item.days_in_library is not none %}
+                        <span class="text-red-400/60">In library {{ item.days_in_library }}d, never watched</span>
                         {% else %}
-                        <span class="text-red-400/60">Never watched on any server</span>
+                        <span class="text-red-400/60">Never watched</span>
                         {% endif %}
                         {% if item.library_name %}
                         <span class="text-white/20 ml-2">{{ item.library_name }}</span>
