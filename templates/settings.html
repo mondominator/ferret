@@ -262,7 +262,7 @@
 
             const result = await response.json();
             if (result.success) {
-                alert('Settings saved successfully! Container restart required for changes to take effect.');
+                alert('Settings saved! Changes will take effect on the next sync cycle.');
                 window.location.href = '/';
             } else {
                 alert('Failed to save settings: ' + result.message);

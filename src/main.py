@@ -1,4 +1,5 @@
 import os
+import time
 import traceback
 import json
 import sys
@@ -215,114 +216,146 @@ def main_loop(env) -> None:
 
         # Start server_2 at the next server in the list
         for server_2 in servers[servers.index(server_1) + 1 :]:
-            try:
-                # Check if server 1 and server 2 are going to be synced in either direction, skip if not
-                if not should_sync_server(
-                    env, server_1, server_2
-                ) and not should_sync_server(env, server_2, server_1):
-                    continue
+            # Check if server 1 and server 2 are going to be synced in either direction, skip if not
+            if not should_sync_server(
+                env, server_1, server_2
+            ) and not should_sync_server(env, server_2, server_1):
+                continue
 
-                logger.info(f"Server 1: {type(server_1)}: {server_1.info()}")
-                logger.info(f"Server 2: {type(server_2)}: {server_2.info()}")
+            # Retry up to 3 times with exponential backoff
+            for attempt in range(3):
+                try:
+                    logger.info(f"Server 1: {type(server_1)}: {server_1.info()}")
+                    logger.info(f"Server 2: {type(server_2)}: {server_2.info()}")
 
-                if web_dashboard_enabled:
-                    # Get short server names for display
-                    s1_name = server_1.info(name_only=True) if hasattr(server_1, 'info') and isinstance(server_1, (Jellyfin, Emby)) else server_1.plex.friendlyName
-                    s2_name = server_2.info(name_only=True) if hasattr(server_2, 'info') and isinstance(server_2, (Jellyfin, Emby)) else server_2.plex.friendlyName
-                    app_state.set_syncing(True, f"{s1_name} ↔ {s2_name}")
-
-                # Create users list
-                logger.info("Creating users list")
-                server_1_users, server_2_users = setup_users(
-                    server_1, server_2, blacklist_users, whitelist_users, user_mapping
-                )
-
-                server_1_libraries, server_2_libraries = setup_libraries(
-                    server_1,
-                    server_2,
-                    blacklist_library,
-                    blacklist_library_type,
-                    whitelist_library,
-                    whitelist_library_type,
-                    library_mapping,
-                )
-                logger.info(f"Server 1 syncing libraries: {server_1_libraries}")
-                logger.info(f"Server 2 syncing libraries: {server_2_libraries}")
-
-                logger.info("Creating watched lists", 1)
-                server_1_watched = server_1.get_watched(
-                    server_1_users, server_1_libraries, server_1_watched
-                )
-                logger.info("Finished creating watched list server 1")
-
-                server_2_watched = server_2.get_watched(server_2_users, server_2_libraries)
-                logger.info("Finished creating watched list server 2")
-
-                logger.trace(f"Server 1 watched: {server_1_watched}")
-                logger.trace(f"Server 2 watched: {server_2_watched}")
-
-                logger.info("Cleaning Server 1 Watched", 1)
-                server_1_watched_filtered = cleanup_watched(
-                    server_1_watched, server_2_watched, user_mapping, library_mapping
-                )
-
-                logger.info("Cleaning Server 2 Watched", 1)
-                server_2_watched_filtered = cleanup_watched(
-                    server_2_watched, server_1_watched, user_mapping, library_mapping
-                )
-
-                logger.debug(
-                    f"server 1 watched that needs to be synced to server 2:\n{server_1_watched_filtered}",
-                )
-                logger.debug(
-                    f"server 2 watched that needs to be synced to server 1:\n{server_2_watched_filtered}",
-                )
-
-                if should_sync_server(env, server_2, server_1):
-                    logger.info(f"Syncing {server_2.info()} -> {server_1.info()}")
                     if web_dashboard_enabled:
-                        app_state.set_syncing(True, f"{s2_name} → {s1_name}")
+                        # Get short server names for display
+                        s1_name = server_1.info(name_only=True) if hasattr(server_1, 'info') and isinstance(server_1, (Jellyfin, Emby)) else server_1.plex.friendlyName
+                        s2_name = server_2.info(name_only=True) if hasattr(server_2, 'info') and isinstance(server_2, (Jellyfin, Emby)) else server_2.plex.friendlyName
+                        app_state.set_syncing(True, f"{s1_name} ↔ {s2_name}")
 
-                    # Add server_2_watched_filtered to server_1_watched that way the stored version isn't stale for the next server
-                    if not dryrun:
-                        server_1_watched = merge_server_watched(
-                            server_1_watched,
+                    # Create users list
+                    logger.info("Creating users list")
+                    server_1_users, server_2_users = setup_users(
+                        server_1, server_2, blacklist_users, whitelist_users, user_mapping
+                    )
+
+                    server_1_libraries, server_2_libraries = setup_libraries(
+                        server_1,
+                        server_2,
+                        blacklist_library,
+                        blacklist_library_type,
+                        whitelist_library,
+                        whitelist_library_type,
+                        library_mapping,
+                    )
+                    logger.info(f"Server 1 syncing libraries: {server_1_libraries}")
+                    logger.info(f"Server 2 syncing libraries: {server_2_libraries}")
+
+                    logger.info("Creating watched lists")
+                    server_1_watched = server_1.get_watched(
+                        server_1_users, server_1_libraries, server_1_watched
+                    )
+                    logger.info("Finished creating watched list server 1")
+
+                    server_2_watched = server_2.get_watched(server_2_users, server_2_libraries)
+                    logger.info("Finished creating watched list server 2")
+
+                    logger.trace(f"Server 1 watched: {server_1_watched}")
+                    logger.trace(f"Server 2 watched: {server_2_watched}")
+
+                    logger.info("Cleaning Server 1 Watched")
+                    server_1_watched_filtered = cleanup_watched(
+                        server_1_watched, server_2_watched, user_mapping, library_mapping
+                    )
+
+                    logger.info("Cleaning Server 2 Watched")
+                    server_2_watched_filtered = cleanup_watched(
+                        server_2_watched, server_1_watched, user_mapping, library_mapping
+                    )
+
+                    logger.debug(
+                        f"server 1 watched that needs to be synced to server 2:\n{server_1_watched_filtered}",
+                    )
+                    logger.debug(
+                        f"server 2 watched that needs to be synced to server 1:\n{server_2_watched_filtered}",
+                    )
+
+                    # Count items to sync for stats
+                    items_synced = 0
+
+                    if should_sync_server(env, server_2, server_1):
+                        logger.info(f"Syncing {server_2.info()} -> {server_1.info()}")
+                        if web_dashboard_enabled:
+                            app_state.set_syncing(True, f"{s2_name} → {s1_name}")
+
+                        # Count items in this direction
+                        for user_data in server_2_watched_filtered.values():
+                            for lib_data in user_data.libraries.values():
+                                items_synced += len(lib_data.movies)
+                                for series in lib_data.series:
+                                    items_synced += len(series.episodes)
+
+                        # Add server_2_watched_filtered to server_1_watched that way the stored version isn't stale for the next server
+                        if not dryrun:
+                            server_1_watched = merge_server_watched(
+                                server_1_watched,
+                                server_2_watched_filtered,
+                                user_mapping,
+                                library_mapping,
+                            )
+
+                        server_1.update_watched(
                             server_2_watched_filtered,
                             user_mapping,
                             library_mapping,
+                            dryrun,
                         )
 
-                    server_1.update_watched(
-                        server_2_watched_filtered,
-                        user_mapping,
-                        library_mapping,
-                        dryrun,
-                    )
+                    if should_sync_server(env, server_1, server_2):
+                        logger.info(f"Syncing {server_1.info()} -> {server_2.info()}")
+                        if web_dashboard_enabled:
+                            app_state.set_syncing(True, f"{s1_name} → {s2_name}")
 
-                if should_sync_server(env, server_1, server_2):
-                    logger.info(f"Syncing {server_1.info()} -> {server_2.info()}")
+                        # Count items in this direction
+                        for user_data in server_1_watched_filtered.values():
+                            for lib_data in user_data.libraries.values():
+                                items_synced += len(lib_data.movies)
+                                for series in lib_data.series:
+                                    items_synced += len(series.episodes)
+
+                        server_2.update_watched(
+                            server_1_watched_filtered,
+                            user_mapping,
+                            library_mapping,
+                            dryrun,
+                        )
+
+                    # Update dashboard stats after successful sync of this pair
                     if web_dashboard_enabled:
-                        app_state.set_syncing(True, f"{s1_name} → {s2_name}")
+                        total_users = len(set(
+                            list(server_1_watched.keys()) + list(server_2_watched.keys())
+                        ))
+                        app_state.update_stats(items_synced=items_synced, users=total_users)
 
-                    server_2.update_watched(
-                        server_1_watched_filtered,
-                        user_mapping,
-                        library_mapping,
-                        dryrun,
-                    )
+                    break  # Success, no need to retry
 
-            except Exception as e:
-                # Get server names for error message
-                s1_name = "Unknown"
-                s2_name = "Unknown"
-                try:
-                    s1_name = server_1.info(name_only=True) if hasattr(server_1, 'info') and isinstance(server_1, (Jellyfin, Emby)) else server_1.plex.friendlyName
-                    s2_name = server_2.info(name_only=True) if hasattr(server_2, 'info') and isinstance(server_2, (Jellyfin, Emby)) else server_2.plex.friendlyName
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Get server names for error message
+                    s1_name = "Unknown"
+                    s2_name = "Unknown"
+                    try:
+                        s1_name = server_1.info(name_only=True) if hasattr(server_1, 'info') and isinstance(server_1, (Jellyfin, Emby)) else server_1.plex.friendlyName
+                        s2_name = server_2.info(name_only=True) if hasattr(server_2, 'info') and isinstance(server_2, (Jellyfin, Emby)) else server_2.plex.friendlyName
+                    except Exception:
+                        pass
 
-                logger.error(f"Sync failed between {s1_name} and {s2_name}: {e}")
-                logger.warning(f"Continuing with remaining server pairs...")
+                    if attempt < 2:
+                        logger.warning(f"Sync failed between {s1_name} and {s2_name} (attempt {attempt + 1}/3), retrying in {2 ** attempt}s: {e}")
+                        time.sleep(2 ** attempt)
+                    else:
+                        logger.error(f"Sync failed between {s1_name} and {s2_name} after 3 attempts: {e}")
+                        logger.warning("Continuing with remaining server pairs...")
 
     # Mark sync as complete
     if web_dashboard_enabled:
@@ -358,6 +391,15 @@ def main() -> None:
     while True:
         try:
             start = perf_counter()
+            # Re-read .env at the start of each cycle so web UI setting
+            # changes are picked up without a container restart.
+            env = dotenv_values(env_file)
+            run_only_once = str_to_bool(get_env_value(env, "RUN_ONLY_ONCE", "False"))
+            sleep_duration = float(get_env_value(env, "SLEEP_DURATION", "3600"))
+            debug_level = get_env_value(env, "DEBUG_LEVEL", "INFO")
+            if debug_level:
+                debug_level = debug_level.upper()
+
             # Reconfigure the logger on each loop so the logs are rotated on each run
             # Preserve handlers if running with web dashboard
             configure_logger(log_file, debug_level, preserve_handlers=preserve_web_handlers)
