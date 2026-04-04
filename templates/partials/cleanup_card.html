@@ -116,13 +116,11 @@
                     </div>
 
                     <!-- Reason line -->
-                    <div class="mt-1 text-[11px] text-white/30">
-                        {% if item.rule_name == 'Never Watched' or (item.rule_name.startswith('Requested') and item.days_since_watched is none) %}
-                        <span class="text-red-400/50">Never watched on any server</span>
-                        {% elif item.days_since_watched is not none %}
+                    <div class="mt-1 text-[11px] text-white/40">
+                        {% if item.days_since_watched is not none %}
                         <span>Not watched in {{ item.days_since_watched }}d — last on {{ item.last_watched_server }}</span>
                         {% else %}
-                        <span class="text-red-400/50">Never watched</span>
+                        <span class="text-red-400/60">Never watched on any server</span>
                         {% endif %}
                         {% if item.library_name %}
                         <span class="text-white/20 ml-2">{{ item.library_name }}</span>
