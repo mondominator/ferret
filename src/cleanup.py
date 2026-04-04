@@ -187,12 +187,22 @@ class SeerrClient:
             # Normalise media_type: Seerr uses "tv" but cleanup engine uses "show"
             engine_type = "show" if media_type == "tv" else media_type
 
+            # Capture when the request was created
+            requested_at = None
+            created_at_str = req.get("createdAt")
+            if created_at_str:
+                try:
+                    requested_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    pass
+
             title_map[title.lower()] = {
                 "request_id": request_id,
                 "media_type": engine_type,
                 "tmdb_id": tmdb_id,
                 "requested_by": requested_by,
                 "title_original": title,
+                "requested_at": requested_at,
             }
 
         logger.info(f"SEERR: Resolved {len(title_map)} request titles")
@@ -237,6 +247,7 @@ class CleanupRule:
     exclude_continuing: bool = True  # skip ongoing shows
     min_watched: int | None = None  # None = any watch counts, 0 = never watched
     seerr_only: bool = False  # only flag items that were requested via Seerr
+    min_days_since_request: int = 30  # for seerr_only rules: days since Seerr request before flagging
 
 
 @dataclass
@@ -869,6 +880,12 @@ class CleanupEngine:
                 if rule.seerr_only and not seerr_info:
                     continue
 
+                # For Seerr rules: skip if requested too recently
+                if rule.seerr_only and seerr_info and seerr_info.get("requested_at"):
+                    days_since_request = (now - seerr_info["requested_at"]).days
+                    if days_since_request < rule.min_days_since_request:
+                        continue
+
                 # Check if min_watched applies (0 = only flag never-watched items)
                 if rule.min_watched == 0:
                     # Skip anything that's been watched on any server
@@ -973,6 +990,7 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
     show_max_age = int(get_env_value(env, "CLEANUP_SHOW_MAX_AGE", "730"))
     movie_max_age = int(get_env_value(env, "CLEANUP_MOVIE_MAX_AGE", "730"))
     exclude_continuing = str_to_bool(get_env_value(env, "CLEANUP_EXCLUDE_CONTINUING", "True"))
+    request_unwatched_days = int(get_env_value(env, "CLEANUP_REQUEST_UNWATCHED_DAYS", "30"))
 
     rules.append(CleanupRule(
         name="Stale Shows",
@@ -987,18 +1005,13 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
         max_age_days=movie_max_age,
     ))
 
-    rules.append(CleanupRule(
-        name="Never Watched",
-        media_type="all",
-        min_watched=0,
-    ))
-
-    # Seerr-specific rules (matching Maintainerr's "Requested and Unwatched")
+    # Seerr-specific: requested and never watched after X days
     rules.append(CleanupRule(
         name="Requested & Unwatched Shows",
         media_type="show",
         min_watched=0,
         seerr_only=True,
+        min_days_since_request=request_unwatched_days,
     ))
 
     rules.append(CleanupRule(
@@ -1006,6 +1019,7 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
         media_type="movie",
         min_watched=0,
         seerr_only=True,
+        min_days_since_request=request_unwatched_days,
     ))
 
     return rules
