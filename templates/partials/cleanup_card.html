@@ -41,12 +41,21 @@
                             {% else %}bg-blue-500/10 text-blue-400 border border-blue-500/20{% endif %}">
                             {{ item.media_type }}
                         </span>
+                        {% if item.seerr_requested %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide bg-teal-500/10 text-teal-400 border border-teal-500/20"
+                              title="Requested by {{ item.seerr_requested_by }} via Seerr">
+                            Seerr
+                        </span>
+                        {% endif %}
                         <span class="text-sm text-white/80 truncate">{{ item.title }}</span>
                         {% if item.library_name %}
                         <span class="text-[10px] text-white/40">{{ item.library_name }}</span>
                         {% endif %}
                     </div>
                     <div class="flex items-center gap-2 shrink-0 ml-2">
+                        {% if item.seerr_requested_by %}
+                        <span class="text-[10px] text-teal-400/60">{{ item.seerr_requested_by }}</span>
+                        {% endif %}
                         {% if item.days_since_watched is not none %}
                         <span class="text-[11px] text-white/50 tabular-nums">{{ item.days_since_watched }}d ago</span>
                         <span class="text-[10px] text-white/40">{{ item.last_watched_server }}</span>

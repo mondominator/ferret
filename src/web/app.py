@@ -100,7 +100,7 @@ async def save_settings(request: Request):
 
         # URL fields must look like URLs (http/https) if non-empty
         url_pattern = re.compile(r'^https?://.+')
-        for url_key in ("PLEX_BASEURL", "JELLYFIN_BASEURL", "EMBY_BASEURL"):
+        for url_key in ("PLEX_BASEURL", "JELLYFIN_BASEURL", "EMBY_BASEURL", "SEERR_BASEURL"):
             url_val = data.get(url_key, "").strip()
             if url_val:
                 # Support comma-separated URLs

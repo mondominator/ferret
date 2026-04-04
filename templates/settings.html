@@ -102,6 +102,26 @@
             </div>
         </div>
 
+        <!-- Seerr (Overseerr / Jellyseerr) -->
+        <div class="bg-surface border border-border rounded overflow-hidden">
+            <div class="px-4 py-3 border-b border-border">
+                <h2 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Seerr</h2>
+            </div>
+            <div class="p-4 flex flex-col gap-4">
+                <div class="flex flex-col gap-1">
+                    <label for="seerr_baseurl" class="text-xs font-semibold text-white/40 tracking-wide">Server URL</label>
+                    <input type="text" id="seerr_baseurl" placeholder="http://192.168.1.100:5055" value="{{ config.get('SEERR_BASEURL', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                    <span class="text-[11px] text-white/50 italic">Overseerr or Jellyseerr URL (used by cleanup to identify requested content)</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="seerr_api_key" class="text-xs font-semibold text-white/40 tracking-wide">API Key</label>
+                    <input type="password" id="seerr_api_key" placeholder="Your Seerr API key" value="{{ config.get('SEERR_API_KEY', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+            </div>
+        </div>
+
         <!-- Sync Directions -->
         <div class="bg-surface border border-border rounded overflow-hidden">
             <div class="px-4 py-3 border-b border-border">
@@ -262,6 +282,8 @@ async function saveSettings() {
         EMBY_TOKEN: document.getElementById('emby_token').value,
         TAUTULLI_DB_PATH: document.getElementById('tautulli_db_path').value,
         TAUTULLI_BACKFILL_ENABLED: document.getElementById('tautulli_backfill_enabled').checked ? 'True' : 'False',
+        SEERR_BASEURL: document.getElementById('seerr_baseurl').value,
+        SEERR_API_KEY: document.getElementById('seerr_api_key').value,
         SYNC_FROM_PLEX_TO_JELLYFIN: document.getElementById('sync_from_plex_to_jellyfin').checked ? 'True' : 'False',
         SYNC_FROM_PLEX_TO_PLEX: document.getElementById('sync_from_plex_to_plex').checked ? 'True' : 'False',
         SYNC_FROM_PLEX_TO_EMBY: document.getElementById('sync_from_plex_to_emby').checked ? 'True' : 'False',
