@@ -11,12 +11,139 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from loguru import logger
+import requests
 
 from src.plex import Plex
 from src.jellyfin import Jellyfin
 from src.emby import Emby
 from src.jellyfin_emby import JellyfinEmby
 from src.functions import str_to_bool, get_env_value
+
+
+class SeerrClient:
+    """
+    Client for Overseerr / Jellyseerr (Seerr) API.
+    Fetches media requests and can delete them by request ID.
+    """
+
+    def __init__(self, base_url: str, api_key: str):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.session = requests.Session()
+        self.session.headers.update({
+            "X-Api-Key": self.api_key,
+            "Accept": "application/json",
+        })
+
+    def fetch_all_requests(self) -> list[dict]:
+        """
+        Paginate through /api/v1/request and return every request object.
+        Each request contains `media` with `tmdbId`, `mediaType`, and `status`.
+        """
+        all_requests: list[dict] = []
+        take = 100
+        skip = 0
+
+        while True:
+            url = f"{self.base_url}/api/v1/request?take={take}&skip={skip}&sort=added"
+            try:
+                resp = self.session.get(url, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+            except Exception as e:
+                logger.error(f"SEERR: Failed to fetch requests (skip={skip}): {e}")
+                break
+
+            results = data.get("results", [])
+            if not results:
+                break
+
+            all_requests.extend(results)
+            total = data.get("pageInfo", {}).get("results", 0)
+            skip += take
+            if skip >= total:
+                break
+
+        logger.info(f"SEERR: Fetched {len(all_requests)} total requests")
+        return all_requests
+
+    def build_requested_titles(self) -> dict[str, dict]:
+        """
+        Build a dict of lowercase title -> request info for all Seerr requests.
+        Looks up titles via /api/v1/media/{mediaId} when the request's media
+        object has a `mediaInfo` block, otherwise falls back to fetching the
+        media record directly.
+
+        Returns: { "title (lower)": { "request_id": int, "media_type": str,
+                                        "tmdb_id": int, "requested_by": str } }
+        """
+        requests_list = self.fetch_all_requests()
+        title_map: dict[str, dict] = {}
+
+        for req in requests_list:
+            request_id = req.get("id")
+            media = req.get("media", {})
+            media_type = media.get("mediaType", "unknown")  # "movie" or "tv"
+            tmdb_id = media.get("tmdbId")
+
+            # Resolve title: try the request-level fields first
+            title = None
+
+            # Some Seerr versions embed title directly
+            if req.get("title"):
+                title = req["title"]
+            elif req.get("name"):
+                title = req["name"]
+
+            # Fall back to looking up via TMDB metadata endpoint
+            if not title and tmdb_id:
+                title = self._lookup_title(media_type, tmdb_id)
+
+            if not title:
+                logger.debug(f"SEERR: Could not resolve title for request {request_id} (tmdb={tmdb_id})")
+                continue
+
+            requested_by = req.get("requestedBy", {}).get("displayName", "Unknown")
+
+            # Normalise media_type: Seerr uses "tv" but cleanup engine uses "show"
+            engine_type = "show" if media_type == "tv" else media_type
+
+            title_map[title.lower()] = {
+                "request_id": request_id,
+                "media_type": engine_type,
+                "tmdb_id": tmdb_id,
+                "requested_by": requested_by,
+                "title_original": title,
+            }
+
+        logger.info(f"SEERR: Resolved {len(title_map)} request titles")
+        return title_map
+
+    def _lookup_title(self, media_type: str, tmdb_id: int) -> str | None:
+        """Fetch title from Seerr's TMDB-backed metadata endpoint."""
+        # Seerr exposes /api/v1/movie/{tmdbId} and /api/v1/tv/{tmdbId}
+        endpoint = "movie" if media_type == "movie" else "tv"
+        url = f"{self.base_url}/api/v1/{endpoint}/{tmdb_id}"
+        try:
+            resp = self.session.get(url, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("title") or data.get("name") or data.get("originalTitle")
+        except Exception as e:
+            logger.debug(f"SEERR: Title lookup failed for {endpoint}/{tmdb_id}: {e}")
+            return None
+
+    def delete_request(self, request_id: int) -> bool:
+        """Delete a Seerr request by ID. Returns True on success."""
+        url = f"{self.base_url}/api/v1/request/{request_id}"
+        try:
+            resp = self.session.delete(url, timeout=15)
+            resp.raise_for_status()
+            logger.info(f"SEERR: Deleted request {request_id}")
+            return True
+        except Exception as e:
+            logger.error(f"SEERR: Failed to delete request {request_id}: {e}")
+            return False
 
 
 @dataclass
@@ -38,6 +165,9 @@ class FlaggedItem:
     rule_name: str
     servers_checked: list[str] = field(default_factory=list)
     library_name: str = ""
+    seerr_requested: bool = False  # True if this title was requested via Seerr
+    seerr_request_id: int | None = None  # Seerr request ID (for future deletion)
+    seerr_requested_by: str | None = None  # Who requested it on Seerr
 
 
 @dataclass
@@ -77,6 +207,9 @@ class CleanupResults:
                     "rule_name": item.rule_name,
                     "servers_checked": item.servers_checked,
                     "library_name": item.library_name,
+                    "seerr_requested": item.seerr_requested,
+                    "seerr_request_id": item.seerr_request_id,
+                    "seerr_requested_by": item.seerr_requested_by,
                 }
                 for item in self.flagged_items
             ],
@@ -109,6 +242,17 @@ class CleanupEngine:
                     self.exclude_exact.add(entry.lower())
             total = len(self.exclude_exact) + len(self.exclude_prefixes)
             logger.info(f"CLEANUP: {total} exclusion rules loaded")
+
+        # Initialize Seerr client if configured
+        self.seerr: SeerrClient | None = None
+        self.seerr_titles: dict[str, dict] = {}
+        seerr_url = get_env_value(env, "SEERR_BASEURL", "")
+        seerr_key = get_env_value(env, "SEERR_API_KEY", "")
+        if seerr_url and seerr_key:
+            self.seerr = SeerrClient(seerr_url, seerr_key)
+            logger.info(f"CLEANUP: Seerr integration enabled ({seerr_url})")
+        else:
+            logger.debug("CLEANUP: Seerr integration disabled (SEERR_BASEURL or SEERR_API_KEY not set)")
 
     def _get_server_name(self, server) -> str:
         """Get a human-readable name for a server."""
@@ -489,6 +633,14 @@ class CleanupEngine:
                         tautulli_updates += 1
             logger.info(f"CLEANUP: Tautulli enriched {tautulli_updates} items with more recent watch data")
 
+        # Step 2c: Fetch Seerr request titles (if configured)
+        if self.seerr:
+            try:
+                self.seerr_titles = self.seerr.build_requested_titles()
+            except Exception as e:
+                logger.error(f"CLEANUP: Failed to fetch Seerr requests: {e}")
+                self.seerr_titles = {}
+
         # Step 3: Apply rules
         for rule in rules:
             logger.info(f"CLEANUP: Applying rule '{rule.name}' (type={rule.media_type}, max_age={rule.max_age_days}d)")
@@ -510,12 +662,26 @@ class CleanupEngine:
                     logger.debug(f"CLEANUP: Skipping '{item_data['title']}' -- continuing series")
                     continue
 
+                # Seerr request info for this title (populated if matched)
+                seerr_info: dict | None = self.seerr_titles.get(title_lower)
+
                 # Check if min_watched applies (0 = only flag never-watched items)
                 if rule.min_watched == 0:
+                    # "Requested & Unwatched" rule: if Seerr is configured,
+                    # ONLY flag items that were actually requested via Seerr.
+                    # Without Seerr, skip this rule entirely (no useful signal).
+                    if self.seerr:
+                        if not seerr_info:
+                            # Not a Seerr request -- skip
+                            continue
+                    else:
+                        # Seerr not configured -- skip the "Requested & Unwatched" rule
+                        continue
+
                     # For "never watched" rules: skip anything watched on any server or Tautulli
                     if item_data["watched_on_any"]:
                         continue
-                    # Item has never been watched -- flag it
+                    # Item was requested via Seerr AND never watched -- flag it
                 else:
                     # For age-based rules: calculate days since last watch
                     last_viewed = item_data["last_viewed"]
@@ -553,23 +719,31 @@ class CleanupEngine:
                     rule_name=rule.name,
                     servers_checked=item_data["servers_checked"],
                     library_name=item_data["library_name"],
+                    seerr_requested=seerr_info is not None,
+                    seerr_request_id=seerr_info["request_id"] if seerr_info else None,
+                    seerr_requested_by=seerr_info["requested_by"] if seerr_info else None,
                 )
                 results.flagged_items.append(flagged)
                 rule_flagged += 1
 
                 # Log the flagged item
+                seerr_tag = f" [Seerr req by {seerr_info['requested_by']}]" if seerr_info else ""
                 if days_since is not None:
                     logger.info(
-                        f"CLEANUP [DRY RUN]: Would flag '{item_data['title']}' "
+                        f"CLEANUP [DRY RUN]: Would flag '{item_data['title']}'{seerr_tag} "
                         f"-- not watched on any server in {days_since} days "
                         f"(threshold: {rule.max_age_days}d, last: {item_data['last_viewed_server']})"
                     )
                 else:
                     logger.info(
-                        f"CLEANUP [DRY RUN]: Would flag '{item_data['title']}' "
+                        f"CLEANUP [DRY RUN]: Would flag '{item_data['title']}'{seerr_tag} "
                         f"-- never watched on any server "
                         f"(threshold: {rule.max_age_days}d)"
                     )
+
+                # NOTE: When dry_run is eventually disabled, this is where we would
+                # call self.seerr.delete_request(seerr_info["request_id"]) to clear
+                # the Seerr request for deleted content.
 
             logger.info(f"CLEANUP: Rule '{rule.name}' flagged {rule_flagged} items")
 

@@ -109,6 +109,10 @@ ENV CLEANUP_MOVIE_MAX_AGE=730
 ENV CLEANUP_EXCLUDE_CONTINUING="True"
 ENV CLEANUP_EXCLUDE_TITLES=""
 
+# Seerr (Overseerr / Jellyseerr) integration
+ENV SEERR_BASEURL=""
+ENV SEERR_API_KEY=""
+
 # Expose web dashboard port
 EXPOSE 8080
 
