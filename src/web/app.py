@@ -142,6 +142,11 @@ async def save_settings(request: Request):
             if not updated:
                 updated_lines.append(line)
 
+        # Append any new keys that weren't in the file
+        for key, value in data.items():
+            if key not in keys_updated:
+                updated_lines.append(f'{key} = "{value}"\n')
+
         # Write back to .env
         with open(env_file, 'w') as f:
             f.writelines(updated_lines)
@@ -172,34 +177,6 @@ async def get_status_badge(request: Request):
     return HTMLResponse(html)
 
 
-@app.get("/api/status/card", response_class=HTMLResponse)
-async def get_status_card(request: Request):
-    """Get status card HTML for htmx updates."""
-    return templates.TemplateResponse(
-        "partials/status_card.html",
-        {"request": request, "status": app_state.get_status()}
-    )
-
-
-@app.get("/api/status/footer", response_class=HTMLResponse)
-async def get_status_footer(request: Request):
-    """Get status footer HTML for htmx updates."""
-    return templates.TemplateResponse(
-        "partials/status_footer.html",
-        {"request": request, "status": app_state.get_status()}
-    )
-
-
-@app.get("/api/status/header", response_class=HTMLResponse)
-async def get_status_header(request: Request):
-    """Get status header HTML for htmx updates."""
-    status = app_state.get_status()
-
-    return templates.TemplateResponse(
-        "partials/status_header.html",
-        {"request": request, "status": status}
-    )
-
 
 @app.get("/api/cleanup", response_class=HTMLResponse)
 async def get_cleanup_card(request: Request):
@@ -221,8 +198,9 @@ async def get_cleanup_card(request: Request):
 @app.post("/api/cleanup/exclude")
 async def exclude_cleanup_item(request: Request):
     """
-    Exclude a title from cleanup. Adds it to the CLEANUP_EXCLUDE_TITLES env var
-    and removes it from the persistent countdown state.
+    Exclude a title from cleanup. Stores the exclusion in the persistent
+    cleanup_state.json file (survives container restarts) and removes
+    it from the current in-memory results.
     """
     try:
         data = await request.json()
@@ -231,45 +209,14 @@ async def exclude_cleanup_item(request: Request):
         if not title:
             return {"success": False, "message": "No title provided"}
 
-        from dotenv import dotenv_values
-        from src.functions import get_env_value
-
-        # 1. Remove from persistent cleanup state
+        # 1. Add to persistent exclusions in cleanup_state.json
         cleanup_state = app_state.get_cleanup_state()
         if cleanup_state:
             cleanup_state.add_exclusion(title)
+        else:
+            logger.warning("CLEANUP: No cleanup state available — exclusion may not persist")
 
-        # 2. Add to CLEANUP_EXCLUDE_TITLES in .env so it persists across restarts
-        env_file = get_env_value(None, "ENV_FILE", ".env")
-        config = dotenv_values(env_file)
-        current_excludes = get_env_value(config, "CLEANUP_EXCLUDE_TITLES", "")
-
-        # Don't add duplicates
-        existing = [e.strip().lower() for e in current_excludes.split(",") if e.strip()]
-        if title.lower() not in existing:
-            new_excludes = f"{current_excludes}, {title}" if current_excludes else title
-            new_excludes = new_excludes.strip(", ")
-
-            # Write back to .env
-            with open(env_file, 'r') as f:
-                lines = f.readlines()
-
-            updated = False
-            updated_lines = []
-            for line in lines:
-                if line.strip().startswith("CLEANUP_EXCLUDE_TITLES =") or line.strip().startswith("CLEANUP_EXCLUDE_TITLES="):
-                    updated_lines.append(f'CLEANUP_EXCLUDE_TITLES = "{new_excludes}"\n')
-                    updated = True
-                else:
-                    updated_lines.append(line)
-
-            if not updated:
-                updated_lines.append(f'CLEANUP_EXCLUDE_TITLES = "{new_excludes}"\n')
-
-            with open(env_file, 'w') as f:
-                f.writelines(updated_lines)
-
-        # 3. Remove from current in-memory cleanup results
+        # 2. Remove from current in-memory cleanup results
         status = app_state.get_status()
         if status.get("cleanup_results") and status["cleanup_results"].get("flagged_items"):
             status["cleanup_results"]["flagged_items"] = [

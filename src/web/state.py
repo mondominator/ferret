@@ -3,7 +3,6 @@ Shared state management for Ferret web dashboard.
 Stores sync status, server info, and recent activity.
 """
 from datetime import datetime
-from typing import Optional
 from collections import deque
 import threading
 
@@ -16,10 +15,10 @@ class AppState:
 
         # Sync state
         self.is_syncing = False
-        self.last_sync_time: Optional[datetime] = None
-        self.next_sync_time: Optional[datetime] = None
+        self.last_sync_time: datetime | None = None
+        self.next_sync_time: datetime | None = None
         self.sync_count = 0
-        self.current_operation: Optional[str] = None
+        self.current_operation: str | None = None
 
         # Dry-run mode flag
         self.dryrun = False
@@ -32,7 +31,7 @@ class AppState:
         self.total_users = 0
 
         # Cleanup results
-        self.cleanup_results: Optional[dict] = None
+        self.cleanup_results: dict | None = None
 
         # Cleanup persistent state reference (set by cleanup engine)
         self._cleanup_state = None
@@ -51,7 +50,7 @@ class AppState:
         with self._lock:
             self.dryrun = dryrun
 
-    def set_syncing(self, is_syncing: bool, operation: Optional[str] = None):
+    def set_syncing(self, is_syncing: bool, operation: str | None = None):
         """Set sync status."""
         with self._lock:
             was_syncing = self.is_syncing

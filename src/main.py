@@ -446,11 +446,7 @@ def main() -> None:
                 sleep(sleep_duration)
 
         except Exception as error:
-            if isinstance(error, list):
-                for message in error:
-                    logger.error(message)
-            else:
-                logger.error(error)
+            logger.error(error)
 
             logger.error(traceback.format_exc())
 

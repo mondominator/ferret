@@ -17,8 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --frozen --group lint 2>/dev/null || echo "No lint group, skipping sync"
-      - run: uvx ruff check src/ || true
+      - run: uv sync --frozen --group lint
+      - run: uvx ruff check src/
 
   docker:
     name: Build & Push Docker Image

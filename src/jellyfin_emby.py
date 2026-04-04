@@ -145,43 +145,25 @@ class JellyfinEmby:
         identifiers: dict[str, str] | None = None,
         json: dict[str, float] | None = None,
     ) -> list[dict[str, Any]] | dict[str, Any] | None:
+        results = None
         try:
-            results = None
-
-            if query_type == "get":
-                response = self.session.get(
-                    self.base_url + query, headers=self.headers, timeout=self.timeout
+            response = self.session.request(
+                query_type,
+                self.base_url + query,
+                headers=self.headers,
+                json=json if query_type == "post" else None,
+                timeout=self.timeout,
+            )
+            if response.status_code not in [200, 204]:
+                raise Exception(
+                    f"Query failed with status {response.status_code} {response.reason}"
                 )
-                if response.status_code not in [200, 204]:
-                    raise Exception(
-                        f"Query failed with status {response.status_code} {response.reason}"
-                    )
-                if response.status_code == 204:
-                    results = None
-                else:
-                    results = response.json()
+            if response.status_code != 204:
+                results = response.json()
 
-            elif query_type == "post":
-                response = self.session.post(
-                    self.base_url + query,
-                    headers=self.headers,
-                    json=json,
-                    timeout=self.timeout,
-                )
-                if response.status_code not in [200, 204]:
-                    raise Exception(
-                        f"Query failed with status {response.status_code} {response.reason}"
-                    )
-                if response.status_code == 204:
-                    results = None
-                else:
-                    results = response.json()
+            if results and not isinstance(results, (list, dict)):
+                raise Exception("Query result is not of type list or dict")
 
-            if results:
-                if not isinstance(results, list) and not isinstance(results, dict):
-                    raise Exception("Query result is not of type list or dict")
-
-            # append identifiers to results
             if identifiers and isinstance(results, dict):
                 results["Identifiers"] = identifiers
 
@@ -511,7 +493,7 @@ class JellyfinEmby:
                     if library_title not in sync_libraries:
                         continue
 
-                    if library_title in users_watched:
+                    if library_title in users_watched[user_name.lower()].libraries:
                         logger.info(
                             f"{self.server_type}: {user_name} {library_title} watched history has already been gathered, skipping"
                         )
@@ -669,7 +651,7 @@ class JellyfinEmby:
                     )
                     return
 
-                jellyfin_shows = [x for x in jellyfin_search.get("Items", [])]
+                jellyfin_shows = jellyfin_search.get("Items", [])
 
                 for jellyfin_show in jellyfin_shows:
                     jellyfin_show_identifiers = extract_identifiers_from_item(
@@ -701,7 +683,7 @@ class JellyfinEmby:
                                 logger.debug(
                                     f"{self.server_type}: Failed to get episodes for {user_name} {library_name} {jellyfin_show.get('Name')}"
                                 )
-                                return
+                                continue
 
                             for jellyfin_episode in jellyfin_episodes.get("Items", []):
                                 jellyfin_episode_identifiers = (
@@ -854,7 +836,7 @@ class JellyfinEmby:
                 )
                 continue
 
-            jellyfin_libraries = [x for x in jellyfin_libraries.get("Items", [])]
+            jellyfin_libraries = jellyfin_libraries.get("Items", [])
 
             for library_name in user_data.libraries:
                 library_data = user_data.libraries[library_name]

@@ -1,10 +1,7 @@
 import os
 from typing import Any
-from dotenv import load_dotenv
 import re
 from pathlib import PureWindowsPath, PurePosixPath
-
-load_dotenv(override=True)
 
 
 def log_marked(
