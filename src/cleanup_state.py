@@ -108,17 +108,42 @@ class CleanupState:
 
     def add_exclusion(self, title: str) -> bool:
         """
-        Remove a title from the countdown tracking (used by the Exclude button).
-        Returns True if the title was found and removed.
+        Remove a title from the countdown tracking and add it to the
+        persistent exclusion list (survives container restarts).
+        Returns True if the title was added to exclusions.
         """
         key = title.lower()
+        # Remove from countdown tracking
         if key in self.state:
             del self.state[key]
+
+        # Add to persistent exclusion list
+        if "exclusions" not in self.state:
+            self.state["exclusions"] = {}
+        if key not in self.state.get("exclusions", {}):
+            self.state["exclusions"][key] = {
+                "excluded_at": datetime.now().isoformat()[:10],
+                "title_original": title,
+            }
+
+        self._save()
+        logger.info(f"CLEANUP STATE: '{title}' excluded -- removed from countdown, added to persistent exclusions")
+        return True
+
+    def get_exclusions(self) -> set[str]:
+        """Return the set of persistently excluded title keys (lowercase)."""
+        return set(self.state.get("exclusions", {}).keys())
+
+    def remove_exclusion(self, title: str) -> bool:
+        """Remove a title from the persistent exclusion list."""
+        key = title.lower()
+        exclusions = self.state.get("exclusions", {})
+        if key in exclusions:
+            del exclusions[key]
             self._save()
-            logger.info(f"CLEANUP STATE: '{title}' excluded -- removed from countdown")
             return True
         return False
 
     def get_all(self) -> dict[str, dict]:
-        """Return a copy of the full state dict."""
-        return dict(self.state)
+        """Return a copy of the full state dict (excluding the exclusions sub-dict)."""
+        return {k: v for k, v in self.state.items() if k != "exclusions"}

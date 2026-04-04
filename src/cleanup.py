@@ -48,9 +48,10 @@ class SonarrClient:
             logger.error(f"SONARR: Failed to fetch series: {e}")
             return []
 
-    def get_ended_unmonitored_series(self) -> list[dict]:
-        """Return series that have ended but are still monitored (candidates for unmonitoring)."""
-        all_series = self.get_all_series()
+    def get_ended_still_monitored_series(self, all_series: list[dict] | None = None) -> list[dict]:
+        """Return series that have ended but are still monitored (candidates for cleanup)."""
+        if all_series is None:
+            all_series = self.get_all_series()
         results = []
         for s in all_series:
             status = s.get("status", "").lower()
@@ -279,7 +280,11 @@ class CleanupResults:
     scan_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     dry_run: bool = True
     deleted_items: list[str] = field(default_factory=list)
-    protected_count: int = 0  # items that were in exclusion list
+    protected_titles: set[str] = field(default_factory=set)  # unique excluded titles
+
+    @property
+    def protected_count(self) -> int:
+        return len(self.protected_titles)
 
     @property
     def flagged_count(self) -> int:
@@ -394,9 +399,35 @@ class CleanupEngine:
         else:
             logger.debug("CLEANUP: Radarr integration disabled (RADARR_BASEURL or RADARR_API_KEY not set)")
 
+        # Cached API data (fetched once per scan, reused for deletion)
+        self._sonarr_series_cache: list[dict] | None = None
+        self._radarr_movies_cache: list[dict] | None = None
+
         # Persistent state
         state_path = get_env_value(env, "CLEANUP_STATE_FILE", "/app/data/cleanup_state.json")
         self.cleanup_state = CleanupState(state_path)
+
+        # Merge persistent exclusions from state file into the exclude set
+        persistent_exclusions = self.cleanup_state.get_exclusions()
+        if persistent_exclusions:
+            self.exclude_exact |= persistent_exclusions
+            logger.info(f"CLEANUP: {len(persistent_exclusions)} persistent exclusions loaded from state file")
+
+        total_excludes = len(self.exclude_exact) + len(self.exclude_prefixes)
+        if total_excludes:
+            logger.info(f"CLEANUP: {total_excludes} total exclusion rules active")
+
+    def _get_sonarr_series(self) -> list[dict]:
+        """Get all Sonarr series (cached)."""
+        if self._sonarr_series_cache is None and self.sonarr:
+            self._sonarr_series_cache = self.sonarr.get_all_series()
+        return self._sonarr_series_cache or []
+
+    def _get_radarr_movies(self) -> list[dict]:
+        """Get all Radarr movies (cached)."""
+        if self._radarr_movies_cache is None and self.radarr:
+            self._radarr_movies_cache = self.radarr.get_all_movies()
+        return self._radarr_movies_cache or []
 
     def _get_server_name(self, server) -> str:
         """Get a human-readable name for a server."""
@@ -698,7 +729,7 @@ class CleanupEngine:
     # Sonarr-based rule scanning
     # ------------------------------------------------------------------
 
-    def _scan_sonarr_unmonitored(self, rule: CleanupRule, results: CleanupResults) -> int:
+    def _scan_sonarr_unmonitored(self, rule: CleanupRule, results: CleanupResults, flagged_keys: set[str]) -> int:
         """
         Handle the 'Unmonitored Shows' rule: query Sonarr for ended+monitored
         series and flag them. Returns count of items flagged.
@@ -707,7 +738,7 @@ class CleanupEngine:
             logger.warning("CLEANUP: Sonarr rule enabled but SONARR_BASEURL/SONARR_API_KEY not set -- skipping")
             return 0
 
-        ended_series = self.sonarr.get_ended_unmonitored_series()
+        ended_series = self.sonarr.get_ended_still_monitored_series(self._get_sonarr_series())
         flagged_count = 0
 
         for series in ended_series:
@@ -717,8 +748,14 @@ class CleanupEngine:
             # Check exclusion list
             if title_lower in self.exclude_exact or any(title_lower.startswith(p) for p in self.exclude_prefixes):
                 logger.debug(f"CLEANUP: Skipping '{title}' -- in exclusion list")
-                results.protected_count += 1
+                results.protected_titles.add(title_lower)
                 continue
+
+            # Skip if already flagged by another rule
+            dedup_key = f"show:{title_lower}"
+            if dedup_key in flagged_keys:
+                continue
+            flagged_keys.add(dedup_key)
 
             # Seerr info
             seerr_info: dict | None = self.seerr_titles.get(title_lower)
@@ -775,13 +812,11 @@ class CleanupEngine:
         sonarr_title_map: dict[str, int] = {}
         radarr_title_map: dict[str, int] = {}
 
-        if self.sonarr:
-            for series in self.sonarr.get_all_series():
-                sonarr_title_map[series.get("title", "").lower()] = series.get("id")
+        for series in self._get_sonarr_series():
+            sonarr_title_map[series.get("title", "").lower()] = series.get("id")
 
-        if self.radarr:
-            for movie in self.radarr.get_all_movies():
-                radarr_title_map[movie.get("title", "").lower()] = movie.get("id")
+        for movie in self._get_radarr_movies():
+            radarr_title_map[movie.get("title", "").lower()] = movie.get("id")
 
         for key in ready_keys:
             item = flagged_by_key.get(key)
@@ -830,6 +865,7 @@ class CleanupEngine:
         """
         results = CleanupResults(dry_run=self.dry_run)
         now = datetime.now(timezone.utc)
+        flagged_keys: set[str] = set()  # prevent duplicate flagging across rules
 
         logger.info("CLEANUP: Starting media lifecycle scan across all servers")
         logger.info(f"CLEANUP: Dry run mode: {self.dry_run}")
@@ -875,7 +911,7 @@ class CleanupEngine:
             # Special handling for Sonarr-based rules
             if rule.check_sonarr_status:
                 logger.info(f"CLEANUP: Applying Sonarr rule '{rule.name}'")
-                rule_flagged = self._scan_sonarr_unmonitored(rule, results)
+                rule_flagged = self._scan_sonarr_unmonitored(rule, results, flagged_keys)
                 logger.info(f"CLEANUP: Rule '{rule.name}' flagged {rule_flagged} items")
                 continue
 
@@ -891,7 +927,11 @@ class CleanupEngine:
                 title_lower = item_data["title"].lower()
                 if title_lower in self.exclude_exact or any(title_lower.startswith(p) for p in self.exclude_prefixes):
                     logger.debug(f"CLEANUP: Skipping '{item_data['title']}' -- in exclusion list")
-                    results.protected_count += 1
+                    results.protected_titles.add(title_lower)
+                    continue
+
+                # Skip if already flagged by another rule
+                if key in flagged_keys:
                     continue
 
                 # Skip continuing shows if configured
@@ -902,7 +942,7 @@ class CleanupEngine:
                 # Skip user-rated movies (starred on Plex)
                 if item_data.get("user_rated", False) and item_data["media_type"] == "movie":
                     logger.debug(f"CLEANUP: Skipping '{item_data['title']}' -- user rated/starred")
-                    results.protected_count += 1
+                    results.protected_titles.add(title_lower)
                     continue
 
                 # Seerr request info for this title (populated if matched)
@@ -960,6 +1000,7 @@ class CleanupEngine:
                     seerr_requested_by=seerr_info["requested_by"] if seerr_info else None,
                 )
                 results.flagged_items.append(flagged)
+                flagged_keys.add(key)
                 rule_flagged += 1
 
                 # Log the flagged item

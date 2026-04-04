@@ -11,6 +11,10 @@
         <p class="text-sm text-white/50 mt-1">Configure servers, sync directions, and behavior</p>
     </div>
 
+    <div class="mb-4 px-4 py-3 bg-amber-500/5 border border-amber-700/50 rounded text-[12px] text-amber-400/80">
+        This dashboard has no authentication. Only expose it on trusted networks.
+    </div>
+
     <div class="flex flex-col gap-3">
 
         <!-- Plex -->
@@ -26,7 +30,8 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="plex_token" class="text-xs font-semibold text-white/40 tracking-wide">API Token</label>
-                    <input type="password" id="plex_token" placeholder="Your Plex token" value="{{ config.get('PLEX_TOKEN', '') }}"
+                    <input type="password" id="plex_token" placeholder="{% if config.get('PLEX_TOKEN') %}(configured){% else %}Your Plex token{% endif %}" value=""
+                        data-configured="{{ 'true' if config.get('PLEX_TOKEN') else 'false' }}"
                         class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex items-center justify-between gap-3 py-1">
@@ -52,7 +57,8 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="jellyfin_token" class="text-xs font-semibold text-white/40 tracking-wide">API Token</label>
-                    <input type="password" id="jellyfin_token" placeholder="Your Jellyfin token" value="{{ config.get('JELLYFIN_TOKEN', '') }}"
+                    <input type="password" id="jellyfin_token" placeholder="{% if config.get('JELLYFIN_TOKEN') %}(configured){% else %}Your Jellyfin token{% endif %}" value=""
+                        data-configured="{{ 'true' if config.get('JELLYFIN_TOKEN') else 'false' }}"
                         class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
             </div>
@@ -71,7 +77,8 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="emby_token" class="text-xs font-semibold text-white/40 tracking-wide">API Token</label>
-                    <input type="password" id="emby_token" placeholder="Your Emby token" value="{{ config.get('EMBY_TOKEN', '') }}"
+                    <input type="password" id="emby_token" placeholder="{% if config.get('EMBY_TOKEN') %}(configured){% else %}Your Emby token{% endif %}" value=""
+                        data-configured="{{ 'true' if config.get('EMBY_TOKEN') else 'false' }}"
                         class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
             </div>
@@ -91,7 +98,8 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="seerr_api_key" class="text-xs font-semibold text-white/40 tracking-wide">API Key</label>
-                    <input type="password" id="seerr_api_key" placeholder="Your Seerr API key" value="{{ config.get('SEERR_API_KEY', '') }}"
+                    <input type="password" id="seerr_api_key" placeholder="{% if config.get('SEERR_API_KEY') %}(configured){% else %}Your Seerr API key{% endif %}" value=""
+                        data-configured="{{ 'true' if config.get('SEERR_API_KEY') else 'false' }}"
                         class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
             </div>
@@ -228,6 +236,107 @@
             </div>
         </div>
 
+        <!-- Sonarr -->
+        <div class="bg-surface border border-border rounded overflow-hidden">
+            <div class="px-4 py-3 border-b border-border">
+                <h2 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Sonarr</h2>
+            </div>
+            <div class="p-4 flex flex-col gap-4">
+                <div class="flex flex-col gap-1">
+                    <label for="sonarr_baseurl" class="text-xs font-semibold text-white/40 tracking-wide">Server URL</label>
+                    <input type="text" id="sonarr_baseurl" placeholder="http://192.168.1.100:8989" value="{{ config.get('SONARR_BASEURL', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="sonarr_api_key" class="text-xs font-semibold text-white/40 tracking-wide">API Key</label>
+                    <input type="password" id="sonarr_api_key" placeholder="{% if config.get('SONARR_API_KEY') %}(configured){% else %}Your Sonarr API key{% endif %}" value=""
+                        data-configured="{{ 'true' if config.get('SONARR_API_KEY') else 'false' }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+            </div>
+        </div>
+
+        <!-- Radarr -->
+        <div class="bg-surface border border-border rounded overflow-hidden">
+            <div class="px-4 py-3 border-b border-border">
+                <h2 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Radarr</h2>
+            </div>
+            <div class="p-4 flex flex-col gap-4">
+                <div class="flex flex-col gap-1">
+                    <label for="radarr_baseurl" class="text-xs font-semibold text-white/40 tracking-wide">Server URL</label>
+                    <input type="text" id="radarr_baseurl" placeholder="http://192.168.1.100:7878" value="{{ config.get('RADARR_BASEURL', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="radarr_api_key" class="text-xs font-semibold text-white/40 tracking-wide">API Key</label>
+                    <input type="password" id="radarr_api_key" placeholder="{% if config.get('RADARR_API_KEY') %}(configured){% else %}Your Radarr API key{% endif %}" value=""
+                        data-configured="{{ 'true' if config.get('RADARR_API_KEY') else 'false' }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+            </div>
+        </div>
+
+        <!-- Cleanup -->
+        <div class="bg-surface border border-border rounded overflow-hidden">
+            <div class="px-4 py-3 border-b border-border">
+                <h2 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Cleanup</h2>
+            </div>
+            <div class="p-4 flex flex-col gap-4">
+                <div class="flex items-center justify-between gap-3 py-1">
+                    <div>
+                        <span class="text-sm text-white/80">Enable Cleanup</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Flag stale media for lifecycle cleanup</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="cleanup_enabled" {% if config.get('CLEANUP_ENABLED', 'False') == 'True' %}checked{% endif %}>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between gap-3 py-1">
+                    <div>
+                        <span class="text-sm text-white/80">Cleanup Dry Run</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Log only, no actual deletions</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="cleanup_dry_run" {% if config.get('CLEANUP_DRY_RUN', 'True') == 'True' %}checked{% endif %}>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="cleanup_show_max_age" class="text-xs font-semibold text-white/40 tracking-wide">Show Max Age (days)</label>
+                    <input type="number" id="cleanup_show_max_age" placeholder="730" value="{{ config.get('CLEANUP_SHOW_MAX_AGE', '730') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="cleanup_movie_max_age" class="text-xs font-semibold text-white/40 tracking-wide">Movie Max Age (days)</label>
+                    <input type="number" id="cleanup_movie_max_age" placeholder="730" value="{{ config.get('CLEANUP_MOVIE_MAX_AGE', '730') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+                <div class="flex items-center justify-between gap-3 py-1">
+                    <div>
+                        <span class="text-sm text-white/80">Exclude Continuing</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Skip shows that are still airing</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="cleanup_exclude_continuing" {% if config.get('CLEANUP_EXCLUDE_CONTINUING', 'True') == 'True' %}checked{% endif %}>
+                        <span class="toggle-track"></span>
+                    </label>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="cleanup_delete_after_days" class="text-xs font-semibold text-white/40 tracking-wide">Delete After Days</label>
+                    <input type="number" id="cleanup_delete_after_days" placeholder="30" value="{{ config.get('CLEANUP_DELETE_AFTER_DAYS', '30') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                    <span class="text-[11px] text-white/50 italic">Days after first flagging before deletion is allowed</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="cleanup_exclude_titles" class="text-xs font-semibold text-white/40 tracking-wide">Exclude Titles</label>
+                    <input type="text" id="cleanup_exclude_titles" placeholder="Star*,Battlestar*,The Office" value="{{ config.get('CLEANUP_EXCLUDE_TITLES', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                    <span class="text-[11px] text-white/50 italic">Comma-separated titles or patterns (use * for prefix matching)</span>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Action buttons -->
@@ -249,14 +358,10 @@
 async function saveSettings() {
     const data = {
         PLEX_BASEURL: document.getElementById('plex_baseurl').value,
-        PLEX_TOKEN: document.getElementById('plex_token').value,
         SSL_BYPASS: document.getElementById('ssl_bypass').checked ? 'True' : 'False',
         JELLYFIN_BASEURL: document.getElementById('jellyfin_baseurl').value,
-        JELLYFIN_TOKEN: document.getElementById('jellyfin_token').value,
         EMBY_BASEURL: document.getElementById('emby_baseurl').value,
-        EMBY_TOKEN: document.getElementById('emby_token').value,
         SEERR_BASEURL: document.getElementById('seerr_baseurl').value,
-        SEERR_API_KEY: document.getElementById('seerr_api_key').value,
         SYNC_FROM_PLEX_TO_JELLYFIN: document.getElementById('sync_from_plex_to_jellyfin').checked ? 'True' : 'False',
         SYNC_FROM_PLEX_TO_PLEX: document.getElementById('sync_from_plex_to_plex').checked ? 'True' : 'False',
         SYNC_FROM_PLEX_TO_EMBY: document.getElementById('sync_from_plex_to_emby').checked ? 'True' : 'False',
@@ -276,8 +381,25 @@ async function saveSettings() {
         GENERATE_GUIDS: document.getElementById('generate_guids').checked ? 'True' : 'False',
         GENERATE_LOCATIONS: document.getElementById('generate_locations').checked ? 'True' : 'False',
         LOG_FILE: document.getElementById('log_file').value,
-        MARK_FILE: document.getElementById('mark_file').value
+        MARK_FILE: document.getElementById('mark_file').value,
+        SONARR_BASEURL: document.getElementById('sonarr_baseurl').value,
+        RADARR_BASEURL: document.getElementById('radarr_baseurl').value,
+        CLEANUP_ENABLED: document.getElementById('cleanup_enabled').checked ? 'True' : 'False',
+        CLEANUP_DRY_RUN: document.getElementById('cleanup_dry_run').checked ? 'True' : 'False',
+        CLEANUP_SHOW_MAX_AGE: document.getElementById('cleanup_show_max_age').value,
+        CLEANUP_MOVIE_MAX_AGE: document.getElementById('cleanup_movie_max_age').value,
+        CLEANUP_EXCLUDE_CONTINUING: document.getElementById('cleanup_exclude_continuing').checked ? 'True' : 'False',
+        CLEANUP_DELETE_AFTER_DAYS: document.getElementById('cleanup_delete_after_days').value,
+        CLEANUP_EXCLUDE_TITLES: document.getElementById('cleanup_exclude_titles').value
     };
+
+    /* Only send token/key values if user actually typed something new */
+    const secretFields = ['plex_token', 'jellyfin_token', 'emby_token', 'seerr_api_key', 'sonarr_api_key', 'radarr_api_key'];
+    const keyMap = {plex_token: 'PLEX_TOKEN', jellyfin_token: 'JELLYFIN_TOKEN', emby_token: 'EMBY_TOKEN', seerr_api_key: 'SEERR_API_KEY', sonarr_api_key: 'SONARR_API_KEY', radarr_api_key: 'RADARR_API_KEY'};
+    secretFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el.value) data[keyMap[id]] = el.value;
+    });
 
     try {
         const resp = await fetch('/api/settings/save', {
