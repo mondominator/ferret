@@ -30,8 +30,6 @@ class AppState:
         # Statistics
         self.total_items_synced = 0
         self.total_users = 0
-        self.backfill_complete = False
-        self.backfill_count = 0
 
         # Cleanup results
         self.cleanup_results: Optional[dict] = None
@@ -79,13 +77,6 @@ class AppState:
             if users > 0:
                 self.total_users = users
 
-    def set_backfill_status(self, complete: bool, count: int = 0):
-        """Update backfill status."""
-        with self._lock:
-            self.backfill_complete = complete
-            if count > 0:
-                self.backfill_count = count
-
     def add_log(self, log_line: str):
         """Add a log line to recent logs."""
         with self._lock:
@@ -131,8 +122,6 @@ class AppState:
                 "servers": self.servers.copy(),
                 "total_items_synced": self.total_items_synced,
                 "total_users": self.total_users,
-                "backfill_complete": self.backfill_complete,
-                "backfill_count": self.backfill_count,
                 "cleanup_results": self.cleanup_results,
             }
 
