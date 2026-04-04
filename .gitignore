@@ -1,7 +1,5 @@
 **.env*
 *.prof
-tautulli.db
-tautulli.db-*
 *.db-wal
 *.db-shm
 

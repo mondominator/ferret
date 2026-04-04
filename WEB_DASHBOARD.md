@@ -37,11 +37,9 @@ services:
       - "8080:8080"  # Web dashboard
     volumes:
       - ./config/.env:/app/.env
-      - /path/to/tautulli/config:/tautulli-data:rw
     environment:
       - PUID=99
       - PGID=100
-      - TAUTULLI_DB_PATH=/tautulli-data/tautulli.db
 ```
 
 ### Unraid
@@ -58,7 +56,6 @@ Then access the dashboard at `http://tower-ip:8080`
 
 - **Sync Status Card**: Shows current sync state, last/next sync time, and statistics
 - **Connected Servers**: Displays all configured Plex/Jellyfin/Emby servers with their status
-- **Tautulli Backfill**: Shows backfill completion status
 - **Live Logs**: Real-time log streaming with auto-scroll
 
 ### Manual Sync

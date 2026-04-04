@@ -1,7 +1,7 @@
 [project]
 name = "ferret"
 version = "1.0.0"
-description = "Sync watched status between Plex, Jellyfin, and Emby servers with Tautulli integration"
+description = "Sync watched status between Plex, Jellyfin, and Emby servers"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -77,31 +77,6 @@
             </div>
         </div>
 
-        <!-- Tautulli -->
-        <div class="bg-surface border border-border rounded overflow-hidden">
-            <div class="px-4 py-3 border-b border-border">
-                <h2 class="text-xs font-bold text-amber-500 uppercase tracking-wider">Tautulli</h2>
-            </div>
-            <div class="p-4 flex flex-col gap-4">
-                <div class="flex flex-col gap-1">
-                    <label for="tautulli_db_path" class="text-xs font-semibold text-white/40 tracking-wide">Database Path</label>
-                    <input type="text" id="tautulli_db_path" placeholder="/tautulli-data/tautulli.db" value="{{ config.get('TAUTULLI_DB_PATH', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
-                    <span class="text-[11px] text-white/50 italic">Path to tautulli.db file, or "test" for test mode</span>
-                </div>
-                <div class="flex items-center justify-between gap-3 py-1">
-                    <div>
-                        <span class="text-sm text-white/80">Enable Tautulli Backfill</span>
-                        <span class="block text-[11px] text-white/50 mt-0.5">Runs once on startup</span>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" id="tautulli_backfill_enabled" {% if config.get('TAUTULLI_BACKFILL_ENABLED', 'False') == 'True' %}checked{% endif %}>
-                        <span class="toggle-track"></span>
-                    </label>
-                </div>
-            </div>
-        </div>
-
         <!-- Seerr (Overseerr / Jellyseerr) -->
         <div class="bg-surface border border-border rounded overflow-hidden">
             <div class="px-4 py-3 border-b border-border">
@@ -280,8 +255,6 @@ async function saveSettings() {
         JELLYFIN_TOKEN: document.getElementById('jellyfin_token').value,
         EMBY_BASEURL: document.getElementById('emby_baseurl').value,
         EMBY_TOKEN: document.getElementById('emby_token').value,
-        TAUTULLI_DB_PATH: document.getElementById('tautulli_db_path').value,
-        TAUTULLI_BACKFILL_ENABLED: document.getElementById('tautulli_backfill_enabled').checked ? 'True' : 'False',
         SEERR_BASEURL: document.getElementById('seerr_baseurl').value,
         SEERR_API_KEY: document.getElementById('seerr_api_key').value,
         SYNC_FROM_PLEX_TO_JELLYFIN: document.getElementById('sync_from_plex_to_jellyfin').checked ? 'True' : 'False',

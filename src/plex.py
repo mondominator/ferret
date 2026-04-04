@@ -28,7 +28,6 @@ from src.watched import (
     UserData,
     check_same_identifiers,
 )
-from src.tautulli import TautulliLogger
 
 
 # Bypass hostname validation for ssl. Taken from https://github.com/pkkid/python-plexapi/issues/143#issuecomment-775485186
@@ -120,21 +119,14 @@ def mark_watched_with_timeline(
     item: Movie | Episode,
     user_plex: PlexServer,
     watch_time: int | None = None,
-    tautulli_logger: TautulliLogger | None = None,
-    user_name: str | None = None,
-    user_id: str | None = None,
-    section_id: int | None = None,
 ) -> None:
     """
-    Mark an item as watched using Plex's timeline/scrobble API and optionally log to Tautulli.
+    Mark an item as watched using Plex's timeline/scrobble API.
 
     Args:
         item: The Movie or Episode to mark as watched
         user_plex: The PlexServer instance for the user
         watch_time: Optional partial watch time in milliseconds. If None, marks as fully watched.
-        tautulli_logger: Optional TautulliLogger instance for history logging
-        user_name: Plex username (required for Tautulli logging)
-        user_id: Plex user ID (required for Tautulli logging)
     """
     duration = item.duration
     if not duration:
@@ -190,18 +182,6 @@ def mark_watched_with_timeline(
             user_plex.query("/:/scrobble", params=scrobble_params)
             logger.debug(f"Plex: Scrobbled {item.title} as watched")
 
-        # Step 2: Log to Tautulli if enabled
-        if tautulli_logger and user_name and user_id:
-            tautulli_logger.log_watch(
-                item=item,
-                user_name=user_name,
-                user_id=str(user_id),
-                server_name=user_plex.friendlyName,
-                machine_id=machine_id,
-                watch_time=watch_time,
-                section_id=section_id,
-            )
-
     except Exception as e:
         logger.error(f"Plex: Timeline scrobble failed for {item.title}, falling back to markWatched(): {e}")
         # Fallback to the old method if timeline fails
@@ -249,9 +229,6 @@ class Plex:
             get_env_value(self.env, "GENERATE_LOCATIONS", "True")
         )
 
-        # Initialize Tautulli logger if configured
-        tautulli_db_path = get_env_value(self.env, "TAUTULLI_DB_PATH", None)
-        self.tautulli_logger = TautulliLogger(tautulli_db_path) if tautulli_db_path else None
 
     def login(
         self,
@@ -282,46 +259,6 @@ class Plex:
 
     def info(self) -> str:
         return f"Plex {self.plex.friendlyName}: {self.plex.version}"
-
-    def backfill_all_users(self) -> int:
-        """
-        Backfill Tautulli history for all Plex users.
-        Should be called once during initialization or first sync.
-        Returns the total number of items backfilled.
-        """
-        if not self.tautulli_logger or not self.tautulli_logger.enabled:
-            return 0
-
-        logger.info("Plex: Starting Tautulli backfill for all users")
-        total_count = 0
-
-        for user in self.users:
-            try:
-                if self.admin_user == user:
-                    user_plex = self.plex
-                else:
-                    token = user.get_token(self.plex.machineIdentifier)
-                    if token:
-                        user_plex = self.login(self.base_url, token, None, None, None)
-                    else:
-                        logger.warning(f"Plex: Failed to get token for {user.title}, skipping backfill")
-                        continue
-
-                libraries = user_plex.library.sections()
-                count = self.tautulli_logger.backfill_user_watched(
-                    user=user,
-                    user_plex=user_plex,
-                    libraries=libraries,
-                    server_name=self.plex.friendlyName,
-                    machine_id=self.plex.machineIdentifier,
-                )
-                total_count += count
-
-            except Exception as e:
-                logger.error(f"Plex: Failed to backfill Tautulli for {user.title}: {e}")
-
-        logger.info(f"Plex: Completed Tautulli backfill for all users - {total_count} items backfilled")
-        return total_count
 
     def get_users(self) -> list[MyPlexUser | MyPlexAccount]:
         try:
@@ -471,19 +408,6 @@ class Plex:
 
                 libraries = user_plex.library.sections()
 
-                # Backfill Tautulli history for this user if enabled
-                if self.tautulli_logger and self.tautulli_logger.enabled:
-                    try:
-                        self.tautulli_logger.backfill_user_watched(
-                            user=user,
-                            user_plex=user_plex,
-                            libraries=libraries,
-                            server_name=self.plex.friendlyName,
-                            machine_id=self.plex.machineIdentifier,
-                        )
-                    except Exception as e:
-                        logger.error(f"Plex: Failed to backfill Tautulli for {user.title}: {e}")
-
                 for library in libraries:
                     if library.title not in sync_libraries:
                         continue
@@ -530,20 +454,6 @@ class Plex:
             )
             return
 
-        # Get the section ID for Tautulli logging
-        section_id = None
-        if hasattr(library_section, 'key') and library_section.key is not None:
-            try:
-                # If it's already an int, use it directly
-                if isinstance(library_section.key, int):
-                    section_id = library_section.key
-                else:
-                    # If it's a string like '/library/sections/1', extract the number
-                    section_id = int(str(library_section.key).split('/')[-1])
-                logger.info(f"Plex: Extracted section_id={section_id} from library_section.key={library_section.key}")
-            except (ValueError, IndexError, AttributeError) as e:
-                logger.warning(f"Could not extract section_id from {library_section.key}: {e}")
-
         # Update movies.
         if library_data.movies:
             # Search for Plex movies that are currently marked as unwatched.
@@ -565,10 +475,6 @@ class Plex:
                                     mark_watched_with_timeline(
                                         plex_movie,
                                         user_plex,
-                                        tautulli_logger=self.tautulli_logger,
-                                        user_name=user.title,
-                                        user_id=user.id,
-                                        section_id=section_id,
                                     )
                                 except Exception as e:
                                     logger.error(
@@ -597,10 +503,6 @@ class Plex:
                                         plex_movie,
                                         user_plex,
                                         stored_movie.status.time,
-                                        tautulli_logger=self.tautulli_logger,
-                                        user_name=user.title,
-                                        user_id=user.id,
-                                        section_id=section_id,
                                     )
                                 except Exception as e:
                                     logger.error(
@@ -658,10 +560,6 @@ class Plex:
                                                 mark_watched_with_timeline(
                                                     plex_episode,
                                                     user_plex,
-                                                    tautulli_logger=self.tautulli_logger,
-                                                    user_name=user.title,
-                                                    user_id=user.id,
-                                                    section_id=section_id,
                                                 )
                                             except Exception as e:
                                                 logger.error(
@@ -691,10 +589,6 @@ class Plex:
                                                     plex_episode,
                                                     user_plex,
                                                     stored_ep.status.time,
-                                                    tautulli_logger=self.tautulli_logger,
-                                                    user_name=user.title,
-                                                    user_id=user.id,
-                                                    section_id=section_id,
                                                 )
                                             except Exception as e:
                                                 logger.error(
@@ -774,21 +668,6 @@ class Plex:
             if not user_plex:
                 logger.error(f"Plex: {user} Failed to get PlexServer")
                 continue
-
-            # Backfill Tautulli history for this user if enabled
-            if self.tautulli_logger and self.tautulli_logger.enabled:
-                try:
-                    # Get all libraries this user has access to
-                    libraries = user_plex.library.sections()
-                    self.tautulli_logger.backfill_user_watched(
-                        user=user,
-                        user_plex=user_plex,
-                        libraries=libraries,
-                        server_name=self.plex.friendlyName,
-                        machine_id=self.plex.machineIdentifier,
-                    )
-                except Exception as e:
-                    logger.error(f"Plex: Failed to backfill Tautulli for {user.title}: {e}")
 
             for library_name in user_data.libraries:
                 library_data = user_data.libraries[library_name]

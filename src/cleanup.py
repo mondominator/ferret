@@ -6,10 +6,8 @@ and flags stale content for deletion.
 ALL ACTIONS ARE DRY RUN ONLY. No actual deletion is performed.
 """
 
-import sqlite3
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
-from pathlib import Path
 from loguru import logger
 import requests
 
@@ -262,56 +260,6 @@ class CleanupEngine:
         elif isinstance(server, JellyfinEmby):
             return f"{server.server_type} ({server.server_name})"
         return "Unknown"
-
-    def _get_tautulli_last_watched(self) -> dict[str, datetime]:
-        """
-        Query Tautulli's database for the most recent play of each title
-        by ANY user. Returns a dict of title -> last watched datetime.
-        """
-        tautulli_db_path = get_env_value(self.env, "TAUTULLI_DB_PATH", None)
-        if not tautulli_db_path or not Path(tautulli_db_path).exists():
-            return {}
-
-        result: dict[str, datetime] = {}
-        try:
-            conn = sqlite3.connect(tautulli_db_path, timeout=30)
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA busy_timeout=5000")
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                SELECT m.grandparent_title, MAX(h.stopped) as last_watched
-                FROM session_history h
-                JOIN session_history_metadata m ON h.id = m.id
-                WHERE m.media_type = 'episode'
-                GROUP BY m.grandparent_title
-
-                UNION ALL
-
-                SELECT m.title, MAX(h.stopped) as last_watched
-                FROM session_history h
-                JOIN session_history_metadata m ON h.id = m.id
-                WHERE m.media_type = 'movie'
-                GROUP BY m.title
-            """)
-
-            for row in cursor.fetchall():
-                title, stopped_ts = row
-                if title and stopped_ts:
-                    try:
-                        dt = datetime.fromtimestamp(stopped_ts, tz=timezone.utc)
-                        # Keep the most recent if a title appears in both queries
-                        if title not in result or dt > result[title]:
-                            result[title] = dt
-                    except (ValueError, OSError, OverflowError):
-                        pass
-
-            conn.close()
-            logger.info(f"CLEANUP: Tautulli returned watch history for {len(result)} titles")
-        except sqlite3.Error as e:
-            logger.error(f"CLEANUP: Failed to query Tautulli database: {e}")
-
-        return result
 
     def _get_plex_library_media(self, server: Plex) -> dict[str, list[dict]]:
         """
@@ -615,26 +563,7 @@ class CleanupEngine:
         results.total_scanned = len(merged)
         logger.info(f"CLEANUP: Merged {len(merged)} unique media items across {len(server_names)} servers")
 
-        # Step 2b: Merge Tautulli watch history (all users) into the merged data
-        tautulli_watches = self._get_tautulli_last_watched()
-        if tautulli_watches:
-            tautulli_updates = 0
-            for key, item_data in merged.items():
-                title = item_data["title"]
-                if title in tautulli_watches:
-                    tau_date = tautulli_watches[title]
-                    # If Tautulli has a more recent watch, use it
-                    if item_data["last_viewed"] is None or tau_date > item_data["last_viewed"]:
-                        item_data["last_viewed"] = tau_date
-                        item_data["last_viewed_server"] = "Tautulli (all users)"
-                        tautulli_updates += 1
-                    # Tautulli having any record means it was watched
-                    if not item_data["watched_on_any"]:
-                        item_data["watched_on_any"] = True
-                        tautulli_updates += 1
-            logger.info(f"CLEANUP: Tautulli enriched {tautulli_updates} items with more recent watch data")
-
-        # Step 2c: Fetch Seerr request titles (if configured)
+        # Step 2b: Fetch Seerr request titles (if configured)
         if self.seerr:
             try:
                 self.seerr_titles = self.seerr.build_requested_titles()
