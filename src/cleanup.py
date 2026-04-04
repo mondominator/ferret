@@ -451,13 +451,16 @@ class CleanupEngine:
                         for movie in user_lib.all():
                             key = movie.title
                             if key not in watch_data:
-                                watch_data[key] = {"title": key, "media_type": "movie", "watched": False, "last_viewed": None}
+                                watch_data[key] = {"title": key, "media_type": "movie", "watched": False, "last_viewed": None, "user_rated": False}
                             if movie.isWatched:
                                 watch_data[key]["watched"] = True
                             if movie.lastViewedAt:
                                 vdate = movie.lastViewedAt.replace(tzinfo=timezone.utc)
                                 if watch_data[key]["last_viewed"] is None or vdate > watch_data[key]["last_viewed"]:
                                     watch_data[key]["last_viewed"] = vdate
+                            # Owner's star rating — rated movies are protected
+                            if is_owner and getattr(movie, 'userRating', None):
+                                watch_data[key]["user_rated"] = True
 
                     elif library.type == "show":
                         for show in user_lib.all():
@@ -894,6 +897,12 @@ class CleanupEngine:
                 # Skip continuing shows if configured
                 if rule.exclude_continuing and item_data.get("is_continuing", False):
                     logger.debug(f"CLEANUP: Skipping '{item_data['title']}' -- continuing series")
+                    continue
+
+                # Skip user-rated movies (starred on Plex)
+                if item_data.get("user_rated", False) and item_data["media_type"] == "movie":
+                    logger.debug(f"CLEANUP: Skipping '{item_data['title']}' -- user rated/starred")
+                    results.protected_count += 1
                     continue
 
                 # Seerr request info for this title (populated if matched)
