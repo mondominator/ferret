@@ -6,7 +6,7 @@
             Syncing
         </span>
         {% if status.current_operation %}
-        <span class="text-[12px] text-white/30 italic truncate max-w-[240px]">{{ status.current_operation }}</span>
+        <span class="text-[12px] text-white/50 italic truncate max-w-[240px]">{{ status.current_operation }}</span>
         {% endif %}
         {% else %}
         <span class="inline-flex items-center px-2.5 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wide bg-surface-raised text-white/40 border border-border-focus">
@@ -18,19 +18,19 @@
 
         <div class="flex items-center gap-1.5 flex-wrap">
             <span class="inline-flex items-center gap-1 px-2 py-0.5 border border-border rounded-sm text-[11px]">
-                <span class="text-white/25 font-medium">Last</span>
+                <span class="text-white/50 font-medium">Last</span>
                 <span class="text-amber-500 font-bold tabular-nums">{% if status.last_sync_time %}{{ status.last_sync_time }}{% else %}Never{% endif %}</span>
             </span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 border border-border rounded-sm text-[11px]">
-                <span class="text-white/25 font-medium">Syncs</span>
+                <span class="text-white/50 font-medium">Syncs</span>
                 <span class="text-amber-500 font-bold tabular-nums">{{ status.sync_count }}</span>
             </span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 border border-border rounded-sm text-[11px]">
-                <span class="text-white/25 font-medium">Items</span>
+                <span class="text-white/50 font-medium">Items</span>
                 <span class="text-amber-500 font-bold tabular-nums">{{ status.total_items_synced }}</span>
             </span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 border border-border rounded-sm text-[11px]">
-                <span class="text-white/25 font-medium">Users</span>
+                <span class="text-white/50 font-medium">Users</span>
                 <span class="text-amber-500 font-bold tabular-nums">{{ status.total_users }}</span>
             </span>
         </div>

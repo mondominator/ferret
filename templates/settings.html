@@ -8,7 +8,7 @@
 <div class="max-w-2xl mx-auto w-full py-6 sm:py-8">
     <div class="mb-6">
         <h1 class="text-2xl font-bold tracking-tight text-white">Settings</h1>
-        <p class="text-sm text-white/30 mt-1">Configure servers, sync directions, and behavior</p>
+        <p class="text-sm text-white/50 mt-1">Configure servers, sync directions, and behavior</p>
     </div>
 
     <div class="flex flex-col gap-3">
@@ -22,12 +22,12 @@
                 <div class="flex flex-col gap-1">
                     <label for="plex_baseurl" class="text-xs font-semibold text-white/40 tracking-wide">Server URL</label>
                     <input type="text" id="plex_baseurl" placeholder="http://192.168.1.100:32400" value="{{ config.get('PLEX_BASEURL', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="plex_token" class="text-xs font-semibold text-white/40 tracking-wide">API Token</label>
                     <input type="password" id="plex_token" placeholder="Your Plex token" value="{{ config.get('PLEX_TOKEN', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex items-center justify-between gap-3 py-1">
                     <span class="text-sm text-white/80">Skip SSL validation</span>
@@ -48,12 +48,12 @@
                 <div class="flex flex-col gap-1">
                     <label for="jellyfin_baseurl" class="text-xs font-semibold text-white/40 tracking-wide">Server URL</label>
                     <input type="text" id="jellyfin_baseurl" placeholder="http://192.168.1.100:8096" value="{{ config.get('JELLYFIN_BASEURL', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="jellyfin_token" class="text-xs font-semibold text-white/40 tracking-wide">API Token</label>
                     <input type="password" id="jellyfin_token" placeholder="Your Jellyfin token" value="{{ config.get('JELLYFIN_TOKEN', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
             </div>
         </div>
@@ -67,12 +67,12 @@
                 <div class="flex flex-col gap-1">
                     <label for="emby_baseurl" class="text-xs font-semibold text-white/40 tracking-wide">Server URL</label>
                     <input type="text" id="emby_baseurl" placeholder="http://192.168.1.100:8920" value="{{ config.get('EMBY_BASEURL', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="emby_token" class="text-xs font-semibold text-white/40 tracking-wide">API Token</label>
                     <input type="password" id="emby_token" placeholder="Your Emby token" value="{{ config.get('EMBY_TOKEN', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
             </div>
         </div>
@@ -86,13 +86,13 @@
                 <div class="flex flex-col gap-1">
                     <label for="tautulli_db_path" class="text-xs font-semibold text-white/40 tracking-wide">Database Path</label>
                     <input type="text" id="tautulli_db_path" placeholder="/tautulli-data/tautulli.db" value="{{ config.get('TAUTULLI_DB_PATH', '') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
-                    <span class="text-[11px] text-white/20 italic">Path to tautulli.db file, or "test" for test mode</span>
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                    <span class="text-[11px] text-white/50 italic">Path to tautulli.db file, or "test" for test mode</span>
                 </div>
                 <div class="flex items-center justify-between gap-3 py-1">
                     <div>
                         <span class="text-sm text-white/80">Enable Tautulli Backfill</span>
-                        <span class="block text-[11px] text-white/20 mt-0.5">Runs once on startup</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Runs once on startup</span>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" id="tautulli_backfill_enabled" {% if config.get('TAUTULLI_BACKFILL_ENABLED', 'False') == 'True' %}checked{% endif %}>
@@ -144,7 +144,7 @@
                 <div class="flex flex-col gap-1">
                     <label for="sleep_duration" class="text-xs font-semibold text-white/40 tracking-wide">Sync Interval (seconds)</label>
                     <input type="number" id="sleep_duration" placeholder="3600" value="{{ config.get('SLEEP_DURATION', '3600') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="debug_level" class="text-xs font-semibold text-white/40 tracking-wide">Log Level</label>
@@ -158,7 +158,7 @@
                 <div class="flex items-center justify-between gap-3 py-1">
                     <div>
                         <span class="text-sm text-white/80">Dry Run Mode</span>
-                        <span class="block text-[11px] text-white/20 mt-0.5">Test without making changes</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Test without making changes</span>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" id="dryrun" {% if config.get('DRYRUN', 'False') == 'True' %}checked{% endif %}>
@@ -168,7 +168,7 @@
                 <div class="flex items-center justify-between gap-3 py-1">
                     <div>
                         <span class="text-sm text-white/80">Run Only Once</span>
-                        <span class="block text-[11px] text-white/20 mt-0.5">Exit after a single sync cycle</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Exit after a single sync cycle</span>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" id="run_only_once" {% if config.get('RUN_ONLY_ONCE', 'False') == 'True' %}checked{% endif %}>
@@ -178,8 +178,8 @@
                 <div class="flex flex-col gap-1">
                     <label for="user_mapping" class="text-xs font-semibold text-white/40 tracking-wide">User Mapping (JSON)</label>
                     <textarea id="user_mapping" rows="3" placeholder='{"server1_user":"server2_user"}'
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors resize-y min-h-[72px] leading-relaxed">{%- if config.get('USER_MAPPING') -%}{{ config.get('USER_MAPPING') }}{%- endif -%}</textarea>
-                    <span class="text-[11px] text-white/20 italic">Map usernames between servers: {"source":"destination"}</span>
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors resize-y min-h-[72px] leading-relaxed">{%- if config.get('USER_MAPPING') -%}{{ config.get('USER_MAPPING') }}{%- endif -%}</textarea>
+                    <span class="text-[11px] text-white/50 italic">Map usernames between servers: {"source":"destination"}</span>
                 </div>
             </div>
         </div>
@@ -193,17 +193,17 @@
                 <div class="flex flex-col gap-1">
                     <label for="request_timeout" class="text-xs font-semibold text-white/40 tracking-wide">Request Timeout (seconds)</label>
                     <input type="number" id="request_timeout" placeholder="300" value="{{ config.get('REQUEST_TIMEOUT', '300') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="max_threads" class="text-xs font-semibold text-white/40 tracking-wide">Max Threads</label>
                     <input type="number" id="max_threads" placeholder="1" value="{{ config.get('MAX_THREADS', '1') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex items-center justify-between gap-3 py-1">
                     <div>
                         <span class="text-sm text-white/80">Generate GUIDs</span>
-                        <span class="block text-[11px] text-white/20 mt-0.5">Slower -- use if servers have different files</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Slower -- use if servers have different files</span>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" id="generate_guids" {% if config.get('GENERATE_GUIDS', 'False') == 'True' %}checked{% endif %}>
@@ -213,7 +213,7 @@
                 <div class="flex items-center justify-between gap-3 py-1">
                     <div>
                         <span class="text-sm text-white/80">Generate Locations</span>
-                        <span class="block text-[11px] text-white/20 mt-0.5">Faster -- use if servers share files</span>
+                        <span class="block text-[11px] text-white/50 mt-0.5">Faster -- use if servers share files</span>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" id="generate_locations" {% if config.get('GENERATE_LOCATIONS', 'True') == 'True' %}checked{% endif %}>
@@ -223,12 +223,12 @@
                 <div class="flex flex-col gap-1">
                     <label for="log_file" class="text-xs font-semibold text-white/40 tracking-wide">Log File Path</label>
                     <input type="text" id="log_file" placeholder="log.log" value="{{ config.get('LOG_FILE', 'log.log') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex flex-col gap-1">
                     <label for="mark_file" class="text-xs font-semibold text-white/40 tracking-wide">Mark File Path</label>
                     <input type="text" id="mark_file" placeholder="mark.log" value="{{ config.get('MARK_FILE', 'mark.log') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/15 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
             </div>
         </div>

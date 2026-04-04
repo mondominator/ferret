@@ -20,12 +20,12 @@
             {% elif status.last_sync_time %}
             <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
-                <span class="text-sm text-white/40">Last sync {{ status.last_sync_time }}</span>
+                <span class="text-sm text-white/60">Last sync {{ status.last_sync_time }}</span>
             </div>
             {% else %}
             <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full bg-white/20"></div>
-                <span class="text-sm text-white/30">No syncs yet</span>
+                <span class="text-sm text-white/50">No syncs yet</span>
             </div>
             {% endif %}
         </div>
@@ -45,17 +45,17 @@
                 <div class="w-2 h-2 rounded-full {% if server.status == 'connected' %}bg-teal-500{% else %}bg-red-500{% endif %}"></div>
                 <div>
                     <span class="text-sm font-medium text-white">{{ name }}</span>
-                    <span class="text-xs text-white/20 ml-2">{{ server.type }}</span>
+                    <span class="text-xs text-white/50 ml-2">{{ server.type }}</span>
                 </div>
             </div>
             {% if server.version %}
-            <span class="text-[11px] text-white/15 font-mono">{{ server.version }}</span>
+            <span class="text-[11px] text-white/60 font-mono">{{ server.version }}</span>
             {% endif %}
         </div>
         {% endfor %}
 
         {% if not status.servers %}
-        <p class="text-white/20 text-sm text-center py-6">No servers connected</p>
+        <p class="text-white/50 text-sm text-center py-6">No servers connected</p>
         {% endif %}
     </div>
 
@@ -64,15 +64,15 @@
     <div class="flex gap-6 justify-center py-2">
         <div class="text-center">
             <span class="block text-2xl font-bold text-white tabular-nums">{{ status.sync_count }}</span>
-            <span class="block text-[10px] text-white/20 uppercase tracking-widest">syncs</span>
+            <span class="block text-[10px] text-white/50 uppercase tracking-widest">syncs</span>
         </div>
         <div class="text-center">
             <span class="block text-2xl font-bold text-white tabular-nums">{{ status.total_items_synced }}</span>
-            <span class="block text-[10px] text-white/20 uppercase tracking-widest">items</span>
+            <span class="block text-[10px] text-white/50 uppercase tracking-widest">items</span>
         </div>
         <div class="text-center">
             <span class="block text-2xl font-bold text-white tabular-nums">{{ status.total_users }}</span>
-            <span class="block text-[10px] text-white/20 uppercase tracking-widest">users</span>
+            <span class="block text-[10px] text-white/50 uppercase tracking-widest">users</span>
         </div>
     </div>
     {% endif %}
@@ -135,13 +135,13 @@ function connectWebSocket() {
                 } else if (level === 'SUCCESS') {
                     el.className += ' text-teal-400/60';
                 } else {
-                    el.className += ' text-white/20';
+                    el.className += ' text-white/50';
                 }
             } else {
-                el.className += ' text-white/20';
+                el.className += ' text-white/50';
             }
         } else {
-            el.className += ' text-white/20';
+            el.className += ' text-white/50';
         }
 
         el.textContent = clean;
