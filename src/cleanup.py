@@ -46,19 +46,6 @@ class SonarrClient:
             logger.error(f"SONARR: Failed to fetch series: {e}")
             return []
 
-    def get_ended_still_monitored_series(self, all_series: list[dict] | None = None) -> list[dict]:
-        """Return series that have ended but are still monitored (candidates for cleanup)."""
-        if all_series is None:
-            all_series = self.get_all_series()
-        results = []
-        for s in all_series:
-            status = s.get("status", "").lower()
-            monitored = s.get("monitored", False)
-            if status == "ended" and monitored:
-                results.append(s)
-        logger.info(f"SONARR: Found {len(results)} ended-but-monitored series out of {len(all_series)} total")
-        return results
-
     def delete_series(self, series_id: int, delete_files: bool = True) -> bool:
         """Delete a series from Sonarr."""
         url = f"{self.base_url}/api/v3/series/{series_id}?deleteFiles={'true' if delete_files else 'false'}"
@@ -250,7 +237,6 @@ class CleanupRule:
     exclude_continuing: bool = True  # skip ongoing shows
     min_watched: int | None = None  # None = any watch counts, 0 = never watched
     seerr_only: bool = False  # only flag items that were requested via Seerr
-    check_sonarr_status: bool = False  # query Sonarr for ended+monitored series
 
 
 @dataclass
@@ -724,66 +710,6 @@ class CleanupEngine:
         return merged
 
     # ------------------------------------------------------------------
-    # Sonarr-based rule scanning
-    # ------------------------------------------------------------------
-
-    def _scan_sonarr_unmonitored(self, rule: CleanupRule, results: CleanupResults, flagged_keys: set[str]) -> int:
-        """
-        Handle the 'Unmonitored Shows' rule: query Sonarr for ended+monitored
-        series and flag them. Returns count of items flagged.
-        """
-        if not self.sonarr:
-            logger.warning("CLEANUP: Sonarr rule enabled but SONARR_BASEURL/SONARR_API_KEY not set -- skipping")
-            return 0
-
-        ended_series = self.sonarr.get_ended_still_monitored_series(self._get_sonarr_series())
-        flagged_count = 0
-
-        for series in ended_series:
-            title = series.get("title", "Unknown")
-            title_lower = title.lower()
-
-            # Check exclusion list
-            if title_lower in self.exclude_exact or any(title_lower.startswith(p) for p in self.exclude_prefixes):
-                logger.debug(f"CLEANUP: Skipping '{title}' -- in exclusion list")
-                results.protected_titles.add(title_lower)
-                continue
-
-            # Skip if already flagged by another rule
-            dedup_key = f"show:{title_lower}"
-            if dedup_key in flagged_keys:
-                continue
-            flagged_keys.add(dedup_key)
-
-            # Seerr info
-            seerr_info: dict | None = self.seerr_titles.get(title_lower)
-
-            flagged = FlaggedItem(
-                title=title,
-                media_type="show",
-                last_watched_date=None,
-                last_watched_server=None,
-                days_since_watched=None,
-                rule_name=rule.name,
-                servers_checked=["Sonarr"],
-                library_name="",
-                seerr_requested=seerr_info is not None,
-                seerr_request_id=seerr_info["request_id"] if seerr_info else None,
-                seerr_requested_by=seerr_info["requested_by"] if seerr_info else None,
-                sonarr_series_id=series.get("id"),
-            )
-            results.flagged_items.append(flagged)
-            flagged_count += 1
-
-            seerr_tag = f" [Seerr req by {seerr_info['requested_by']}]" if seerr_info else ""
-            logger.info(
-                f"CLEANUP [DRY RUN]: Would flag '{title}'{seerr_tag} "
-                f"-- ended series still monitored in Sonarr (id={series.get('id')})"
-            )
-
-        return flagged_count
-
-    # ------------------------------------------------------------------
     # Deletion logic (behind dry_run gate)
     # ------------------------------------------------------------------
 
@@ -906,13 +832,6 @@ class CleanupEngine:
 
         # Step 3: Apply rules
         for rule in rules:
-            # Special handling for Sonarr-based rules
-            if rule.check_sonarr_status:
-                logger.info(f"CLEANUP: Applying Sonarr rule '{rule.name}'")
-                rule_flagged = self._scan_sonarr_unmonitored(rule, results, flagged_keys)
-                logger.info(f"CLEANUP: Rule '{rule.name}' flagged {rule_flagged} items")
-                continue
-
             logger.info(f"CLEANUP: Applying rule '{rule.name}' (type={rule.media_type}, max_age={rule.max_age_days}d)")
             rule_flagged = 0
 
@@ -1087,13 +1006,6 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
         media_type="movie",
         min_watched=0,
         seerr_only=True,
-    ))
-
-    # Sonarr: ended shows still monitored
-    rules.append(CleanupRule(
-        name="Unmonitored Shows",
-        media_type="show",
-        check_sonarr_status=True,
     ))
 
     return rules
