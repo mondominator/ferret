@@ -36,7 +36,6 @@ def run_web_server():
 
 def main():
     """Main entry point - runs both sync and web server."""
-    import os
     from dotenv import dotenv_values
     from src.functions import get_env_value
 
