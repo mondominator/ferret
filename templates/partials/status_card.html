@@ -1,47 +1,46 @@
-<div class="card" hx-get="/api/status/card" hx-trigger="every 2s" hx-swap="outerHTML">
-    <h2>Sync Status</h2>
-    <div class="status-indicator">
+<div class="status-strip" hx-get="/api/status/card" hx-trigger="every 2s" hx-swap="outerHTML">
+    <div class="status-strip-left">
         {% if status.is_syncing %}
-        <span class="status-badge syncing">Syncing</span>
-        <p class="operation">{{ status.current_operation or "Processing..." }}</p>
-        {% else %}
-        <span class="status-badge idle">Idle</span>
-        <p class="operation">Waiting for next sync</p>
+        <span class="sync-badge syncing"><span class="sync-dot"></span> Syncing</span>
+        {% if status.current_operation %}
+        <span class="op-label">{{ status.current_operation }}</span>
         {% endif %}
-    </div>
+        {% else %}
+        <span class="sync-badge idle">Idle</span>
+        {% endif %}
 
-    <div class="stats-grid">
-        <div class="stat">
-            <span class="stat-label">Last Sync</span>
-            <span class="stat-value">
-                {% if status.last_sync_time %}
-                {{ status.last_sync_time }}
-                {% else %}
-                Never
-                {% endif %}
-            </span>
-        </div>
-        <div class="stat">
-            <span class="stat-label">Total Syncs</span>
-            <span class="stat-value">{{ status.sync_count }}</span>
-        </div>
-        <div class="stat">
-            <span class="stat-label">Items Synced</span>
-            <span class="stat-value">{{ status.total_items_synced }}</span>
-        </div>
-        <div class="stat">
-            <span class="stat-label">Users</span>
-            <span class="stat-value">{{ status.total_users }}</span>
-        </div>
-    </div>
+        <span class="strip-divider"></span>
 
-    <div class="sync-actions">
+        <span class="stat-chip">
+            <span class="stat-chip-label">Last</span>
+            <span class="stat-chip-value">{% if status.last_sync_time %}{{ status.last_sync_time }}{% else %}Never{% endif %}</span>
+        </span>
+        <span class="stat-chip">
+            <span class="stat-chip-label">Syncs</span>
+            <span class="stat-chip-value">{{ status.sync_count }}</span>
+        </span>
+        <span class="stat-chip">
+            <span class="stat-chip-label">Items</span>
+            <span class="stat-chip-value">{{ status.total_items_synced }}</span>
+        </span>
+        <span class="stat-chip">
+            <span class="stat-chip-label">Users</span>
+            <span class="stat-chip-value">{{ status.total_users }}</span>
+        </span>
+    </div>
+    <div class="status-strip-right">
         <button
-            class="btn btn-primary"
+            class="btn-sync"
             hx-post="/api/sync/trigger"
             hx-swap="none"
             {% if status.is_syncing %}disabled{% endif %}>
-            Trigger Manual Sync
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 8a7 7 0 0 1 11.9-5"/>
+                <path d="M15 8a7 7 0 0 1-11.9 5"/>
+                <path d="M11 1l2 2-2 2"/>
+                <path d="M5 11l-2 2 2 2"/>
+            </svg>
+            Sync Now
         </button>
     </div>
 </div>

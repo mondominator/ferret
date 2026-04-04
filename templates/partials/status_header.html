@@ -1,72 +1,68 @@
-<div class="logs-header" hx-get="/api/status/header" hx-trigger="every 2s" hx-swap="outerHTML">
-    <div class="header-left">
-        <h2>Live Logs</h2>
-        <!-- Sync Status Badge -->
-        <div class="sync-status-inline">
-            {% if status.is_syncing %}
-            <span class="status-badge syncing">Syncing</span>
-            {% if status.current_operation %}
-            <span class="operation-text">{{ status.current_operation }}</span>
-            {% endif %}
-            {% else %}
-            <span class="status-badge idle">Idle</span>
-            {% endif %}
-            {% if status.dryrun %}
-            <span class="status-badge dryrun">Dry Run</span>
-            {% endif %}
-        </div>
-    </div>
-    <!-- Server Status, Stats, and Controls -->
-    <div class="header-badges">
-        <div class="servers-inline">
-            {% if status.servers %}
-                {% for name, info in status.servers.items() %}
-                <span class="server-badge">
-                    <span class="status-dot {{ info.status }}"></span>
-                    <span class="server-name">{{ name }}</span>
-                    <span class="server-type-small">{{ info.type }}</span>
-                </span>
-                {% endfor %}
-            {% endif %}
-        </div>
-        <!-- Tautulli Badge -->
+<div class="status-strip" hx-get="/api/status/header" hx-trigger="every 2s" hx-swap="outerHTML">
+    <div class="status-strip-left">
+        <!-- Sync state -->
+        {% if status.is_syncing %}
+        <span class="sync-badge syncing"><span class="sync-dot"></span> Syncing</span>
+        {% if status.current_operation %}
+        <span class="op-label">{{ status.current_operation }}</span>
+        {% endif %}
+        {% else %}
+        <span class="sync-badge idle">Idle</span>
+        {% endif %}
+
+        {% if status.dryrun %}
+        <span class="sync-badge dryrun">Dry Run</span>
+        {% endif %}
+
+        <!-- Server pills -->
+        {% if status.servers %}
+        <span class="strip-divider"></span>
+        {% for name, info in status.servers.items() %}
+        <span class="pill">
+            <span class="pill-dot {{ info.status }}"></span>
+            <span class="pill-name">{{ name }}</span>
+            <span class="pill-meta">{{ info.type }}</span>
+        </span>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Tautulli pill -->
         {% if status.tautulli_enabled %}
-        <span class="server-badge tautulli-badge">
-            <span class="status-dot {% if status.backfill_complete %}connected{% else %}pending{% endif %}"></span>
-            <span class="server-name">Tautulli</span>
-            {% if status.backfill_complete %}
-            <span class="server-type-small">{{ status.backfill_count }} backfilled</span>
-            {% else %}
-            <span class="server-type-small">pending</span>
-            {% endif %}
+        <span class="pill">
+            <span class="pill-dot {% if status.backfill_complete %}connected{% else %}pending{% endif %}"></span>
+            <span class="pill-name">Tautulli</span>
+            <span class="pill-meta">{% if status.backfill_complete %}{{ status.backfill_count }} backfilled{% else %}pending{% endif %}</span>
         </span>
         {% endif %}
-        <!-- Sync Stats -->
-        <span class="server-badge stats-badge">
-            <span class="server-name">Syncs</span>
-            <span class="server-type-small">{{ status.sync_count }}</span>
+
+        <span class="strip-divider"></span>
+
+        <!-- Stats -->
+        <span class="stat-chip">
+            <span class="stat-chip-label">Syncs</span>
+            <span class="stat-chip-value">{{ status.sync_count }}</span>
         </span>
-        <span class="server-badge stats-badge">
-            <span class="server-name">Items</span>
-            <span class="server-type-small">{{ status.total_items_synced }}</span>
+        <span class="stat-chip">
+            <span class="stat-chip-label">Items</span>
+            <span class="stat-chip-value">{{ status.total_items_synced }}</span>
         </span>
-        <!-- Last Sync Info -->
-        <span class="server-badge last-sync-badge">
-            <span class="server-name">Last Sync</span>
-            <span class="server-type-small">
-                {% if status.last_sync_time %}
-                {{ status.last_sync_time }}
-                {% else %}
-                Never
-                {% endif %}
-            </span>
+        <span class="stat-chip">
+            <span class="stat-chip-label">Last</span>
+            <span class="stat-chip-value">{% if status.last_sync_time %}{{ status.last_sync_time }}{% else %}Never{% endif %}</span>
         </span>
-        <!-- Manual Sync Button -->
+    </div>
+    <div class="status-strip-right">
         <button
-            class="btn btn-primary btn-compact"
+            class="btn-sync"
             hx-post="/api/sync/trigger"
             hx-swap="none"
             {% if status.is_syncing %}disabled{% endif %}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 8a7 7 0 0 1 11.9-5"/>
+                <path d="M15 8a7 7 0 0 1-11.9 5"/>
+                <path d="M11 1l2 2-2 2"/>
+                <path d="M5 11l-2 2 2 2"/>
+            </svg>
             Sync Now
         </button>
     </div>
