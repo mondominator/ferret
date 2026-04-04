@@ -158,6 +158,19 @@ async def get_status():
     return app_state.get_status()
 
 
+@app.get("/api/status/badge", response_class=HTMLResponse)
+async def get_status_badge(request: Request):
+    """Get compact status badge HTML for htmx polling."""
+    s = app_state.get_status()
+    if s["is_syncing"]:
+        html = '<div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div><span class="text-sm text-amber-500 font-medium">Syncing</span></div>'
+    elif s.get("last_sync_time"):
+        html = f'<div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div><span class="text-sm text-white/40">Last sync {s["last_sync_time"]}</span></div>'
+    else:
+        html = '<div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-white/20"></div><span class="text-sm text-white/30">No syncs yet</span></div>'
+    return HTMLResponse(html)
+
+
 @app.get("/api/status/card", response_class=HTMLResponse)
 async def get_status_card(request: Request):
     """Get status card HTML for htmx updates."""
