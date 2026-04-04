@@ -79,10 +79,14 @@ class CleanupState:
 
         self._save()
 
+    def _is_tracked_item(self, key: str) -> bool:
+        """Check if a key is a tracked flagged item (not metadata like 'exclusions')."""
+        return key != "exclusions" and isinstance(self.state.get(key), dict) and "first_flagged" in self.state.get(key, {})
+
     def days_until_deletion(self, title: str, delete_after_days: int = 30) -> int:
         """How many days remain before this item is eligible for auto-deletion."""
         key = title.lower()
-        if key in self.state:
+        if self._is_tracked_item(key):
             first = datetime.fromisoformat(self.state[key]["first_flagged"])
             elapsed = (datetime.now() - first).days
             return max(0, delete_after_days - elapsed)
@@ -91,7 +95,7 @@ class CleanupState:
     def days_flagged(self, title: str) -> int:
         """How many days this item has been continuously flagged."""
         key = title.lower()
-        if key in self.state:
+        if self._is_tracked_item(key):
             first = datetime.fromisoformat(self.state[key]["first_flagged"])
             return (datetime.now() - first).days
         return 0
@@ -101,6 +105,8 @@ class CleanupState:
         ready = []
         now = datetime.now()
         for key, info in self.state.items():
+            if not self._is_tracked_item(key):
+                continue
             first = datetime.fromisoformat(info["first_flagged"])
             if (now - first).days >= delete_after_days:
                 ready.append(key)

@@ -985,13 +985,13 @@ class CleanupEngine:
                 seerr_tag = f" [Seerr req by {seerr_info['requested_by']}]" if seerr_info else ""
                 if days_since is not None:
                     logger.info(
-                        f"CLEANUP [DRY RUN]: Would flag '{item_data['title']}'{seerr_tag} "
+                        f"CLEANUP: Flagged '{item_data['title']}'{seerr_tag} "
                         f"-- not watched on any server in {days_since} days "
                         f"(threshold: {rule.max_age_days}d, last: {item_data['last_viewed_server']})"
                     )
                 else:
                     logger.info(
-                        f"CLEANUP [DRY RUN]: Would flag '{item_data['title']}'{seerr_tag} "
+                        f"CLEANUP: Flagged '{item_data['title']}'{seerr_tag} "
                         f"-- never watched on any server "
                         f"(threshold: {rule.max_age_days}d)"
                     )
