@@ -263,6 +263,7 @@ class FlaggedItem:
     seerr_requested: bool = False  # True if this title was requested via Seerr
     seerr_request_id: int | None = None  # Seerr request ID (for future deletion)
     seerr_requested_by: str | None = None  # Who requested it on Seerr
+    days_in_library: int | None = None  # Days since added to library (for never-watched items)
     days_until_deletion: int | None = None  # Countdown from persistent state
     sonarr_series_id: int | None = None  # Sonarr series ID (for deletion)
     radarr_movie_id: int | None = None  # Radarr movie ID (for deletion)
@@ -325,6 +326,7 @@ class CleanupResults:
                     "seerr_requested": item.seerr_requested,
                     "seerr_request_id": item.seerr_request_id,
                     "seerr_requested_by": item.seerr_requested_by,
+                    "days_in_library": item.days_in_library,
                     "days_until_deletion": item.days_until_deletion,
                 }
                 for item in self.flagged_items
@@ -477,7 +479,8 @@ class CleanupEngine:
                         for movie in user_lib.all():
                             key = movie.title
                             if key not in watch_data:
-                                watch_data[key] = {"title": key, "media_type": "movie", "watched": False, "last_viewed": None, "user_rated": False}
+                                added = movie.addedAt.replace(tzinfo=timezone.utc) if movie.addedAt else None
+                                watch_data[key] = {"title": key, "media_type": "movie", "watched": False, "last_viewed": None, "user_rated": False, "added_at": added}
                             if movie.isWatched:
                                 watch_data[key]["watched"] = True
                             if movie.lastViewedAt:
@@ -493,7 +496,8 @@ class CleanupEngine:
                             key = show.title
                             if key not in watch_data:
                                 is_cont = getattr(show, 'status', '') in ['Continuing', 'Returning Series']
-                                watch_data[key] = {"title": key, "media_type": "show", "watched": False, "last_viewed": None, "is_continuing": is_cont}
+                                added = show.addedAt.replace(tzinfo=timezone.utc) if show.addedAt else None
+                                watch_data[key] = {"title": key, "media_type": "show", "watched": False, "last_viewed": None, "is_continuing": is_cont, "added_at": added}
 
                             # For owner: full episode scan (most accurate)
                             # For shared users: show-level lastViewedAt (fast)
@@ -554,7 +558,7 @@ class CleanupEngine:
                         all_movies = server.query(
                             f"/Users/{user_id}/Items"
                             + f"?ParentId={library_id}&IncludeItemTypes=Movie&Recursive=True"
-                            + "&Fields=ProviderIds,UserDataLastPlayedDate",
+                            + "&Fields=ProviderIds,UserDataLastPlayedDate,DateCreated",
                             "get",
                         )
                         if all_movies and isinstance(all_movies, dict):
@@ -575,11 +579,19 @@ class CleanupEngine:
                                 watched = user_data.get("Played", False)
 
                                 if key not in media[library_title]:
+                                    added_at = None
+                                    date_created = movie.get("DateCreated")
+                                    if date_created:
+                                        try:
+                                            added_at = datetime.fromisoformat(date_created.replace("Z", "+00:00"))
+                                        except (ValueError, TypeError):
+                                            pass
                                     media[library_title][key] = {
                                         "title": title,
                                         "media_type": "movie",
                                         "watched": watched,
                                         "last_viewed": last_viewed,
+                                        "added_at": added_at,
                                     }
                                 else:
                                     existing = media[library_title][key]
@@ -592,7 +604,7 @@ class CleanupEngine:
                         all_shows = server.query(
                             f"/Users/{user_id}/Items"
                             + f"?ParentId={library_id}&IncludeItemTypes=Series&Recursive=True"
-                            + "&Fields=ProviderIds,Path,Status,UserDataLastPlayedDate",
+                            + "&Fields=ProviderIds,Path,Status,UserDataLastPlayedDate,DateCreated",
                             "get",
                         )
                         if all_shows and isinstance(all_shows, dict):
@@ -642,12 +654,20 @@ class CleanupEngine:
                                                     pass
 
                                 if key not in media[library_title]:
+                                    added_at = None
+                                    date_created = show.get("DateCreated")
+                                    if date_created:
+                                        try:
+                                            added_at = datetime.fromisoformat(date_created.replace("Z", "+00:00"))
+                                        except (ValueError, TypeError):
+                                            pass
                                     media[library_title][key] = {
                                         "title": show_name,
                                         "media_type": "show",
                                         "watched": any_watched,
                                         "last_viewed": most_recent_watch,
                                         "is_continuing": is_continuing,
+                                        "added_at": added_at,
                                     }
                                 else:
                                     existing = media[library_title][key]
@@ -697,6 +717,7 @@ class CleanupEngine:
                             "last_viewed_server": None,
                             "watched_on_any": False,
                             "is_continuing": item.get("is_continuing", False),
+                            "added_at": item.get("added_at"),
                             "servers_checked": [],
                             "library_name": library_name,
                         }
@@ -717,6 +738,12 @@ class CleanupEngine:
                     # Preserve continuing status from any server
                     if item.get("is_continuing"):
                         existing["is_continuing"] = True
+
+                    # Keep the earliest added_at across servers
+                    item_added = item.get("added_at")
+                    if item_added:
+                        if existing["added_at"] is None or item_added < existing["added_at"]:
+                            existing["added_at"] = item_added
 
         return merged
 
@@ -907,8 +934,18 @@ class CleanupEngine:
                         if days_since < rule.max_age_days:
                             continue
                     else:
-                        # Never watched — skip, the "Never Watched" rule handles these
-                        continue
+                        # Never watched — check if it's been in the library long enough
+                        added_at = item_data.get("added_at")
+                        if added_at:
+                            if added_at.tzinfo is None:
+                                added_at = added_at.replace(tzinfo=timezone.utc)
+                            days_in_library = (now - added_at).days
+                            if days_in_library < rule.max_age_days:
+                                continue
+                            # Old enough and never watched — flag it
+                        else:
+                            # No added date available — skip to be safe
+                            continue
 
                 # Re-calculate days_since for the flagged item (needed for both branches)
                 last_viewed = item_data["last_viewed"]
@@ -918,6 +955,14 @@ class CleanupEngine:
                         last_viewed = last_viewed.replace(tzinfo=timezone.utc)
                     delta = now - last_viewed
                     days_since = delta.days
+
+                # Calculate days in library for never-watched items
+                days_in_library = None
+                added_at = item_data.get("added_at")
+                if added_at and not item_data["watched_on_any"]:
+                    if added_at.tzinfo is None:
+                        added_at = added_at.replace(tzinfo=timezone.utc)
+                    days_in_library = (now - added_at).days
 
                 # This item should be flagged
                 flagged = FlaggedItem(
@@ -932,6 +977,7 @@ class CleanupEngine:
                     seerr_requested=seerr_info is not None,
                     seerr_request_id=seerr_info["request_id"] if seerr_info else None,
                     seerr_requested_by=seerr_info["requested_by"] if seerr_info else None,
+                    days_in_library=days_in_library,
                 )
                 results.flagged_items.append(flagged)
                 flagged_keys.add(key)
