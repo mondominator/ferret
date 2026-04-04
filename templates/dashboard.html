@@ -4,41 +4,82 @@
 {% block nav_settings %}{% endblock %}
 
 {% block content %}
-<!-- Status Bar -->
-{% include "partials/status_header.html" %}
+<div class="max-w-2xl mx-auto w-full py-4 sm:py-8 space-y-4">
 
-<!-- Log Viewer -->
-<div class="flex-1 flex flex-col bg-surface border border-border rounded overflow-hidden min-h-0">
-    <!-- Log Header -->
-    <div class="flex items-center justify-between px-3.5 py-2 border-b border-border shrink-0 sm:px-4">
-        <div class="flex items-center gap-2">
+    <!-- Sync Status Card -->
+    <div id="status-area"
+         hx-get="/api/status/html"
+         hx-trigger="every 3s"
+         hx-swap="innerHTML">
+        {% include "partials/status_header.html" %}
+    </div>
+
+    <!-- Server Cards -->
+    <div class="grid gap-3 sm:grid-cols-2">
+        {% for server in status.servers %}
+        <div class="bg-surface border border-border rounded-sm p-4">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full {% if server.status == 'connected' %}bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.5)]{% else %}bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]{% endif %}"></div>
+                    <span class="font-semibold text-sm text-white">{{ server.name }}</span>
+                </div>
+                <span class="text-[10px] text-white/30 uppercase tracking-wider">{{ server.type }}</span>
+            </div>
+            {% if server.version %}
+            <p class="text-[11px] text-white/20">{{ server.version }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% if not status.servers %}
+        <div class="sm:col-span-2 bg-surface border border-border rounded-sm p-6 text-center">
+            <p class="text-white/30 text-sm">No servers connected</p>
+            <p class="text-white/15 text-xs mt-1">Configure servers in Settings</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-3 gap-3">
+        <div class="bg-surface border border-border rounded-sm p-4 text-center">
+            <span class="block text-2xl font-bold text-amber-500 tabular-nums">{{ status.sync_count }}</span>
+            <span class="block text-[10px] text-white/30 uppercase tracking-wider mt-1">Syncs</span>
+        </div>
+        <div class="bg-surface border border-border rounded-sm p-4 text-center">
+            <span class="block text-2xl font-bold text-amber-500 tabular-nums">{{ status.total_items_synced }}</span>
+            <span class="block text-[10px] text-white/30 uppercase tracking-wider mt-1">Items</span>
+        </div>
+        <div class="bg-surface border border-border rounded-sm p-4 text-center">
+            <span class="block text-2xl font-bold text-amber-500 tabular-nums">{{ status.total_users }}</span>
+            <span class="block text-[10px] text-white/30 uppercase tracking-wider mt-1">Users</span>
+        </div>
+    </div>
+
+    <!-- Recent Activity / Errors -->
+    <div class="bg-surface border border-border rounded-sm">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
+            <span class="text-xs font-semibold text-white/40 uppercase tracking-wider">Recent Activity</span>
             <span class="live-dot"></span>
-            <span class="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Live Logs</span>
         </div>
-        <div class="flex gap-1">
-            <button id="btn-autoscroll" onclick="toggleAutoScroll()"
-                class="px-2 py-0.5 text-[10px] font-medium rounded border border-border-focus text-amber-500 bg-transparent hover:bg-surface-raised transition-colors cursor-pointer font-sans">
-                Auto-scroll
-            </button>
-            <button onclick="clearLogs()"
-                class="px-2 py-0.5 text-[10px] font-medium rounded border border-border text-white/25 bg-transparent hover:text-white/50 hover:border-border-focus transition-colors cursor-pointer font-sans">
-                Clear
-            </button>
+        <div id="activity-feed" class="max-h-[40vh] overflow-y-auto">
+            <div id="activity-content" class="p-3 space-y-0.5 font-mono text-[12px]">
+                <p class="text-white/15 text-center py-4">Connecting...</p>
+            </div>
         </div>
     </div>
-    <!-- Log Content -->
-    <div id="logs-container" class="logs-container flex-1 overflow-y-auto bg-black font-mono text-[13px] leading-relaxed">
-        <div id="logs-content" class="py-2"></div>
-    </div>
+
+    <!-- Sync Button -->
+    <button hx-post="/api/sync/trigger" hx-swap="none"
+        class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm rounded-sm transition-colors cursor-pointer active:scale-[0.98]">
+        Sync Now
+    </button>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 let ws;
-let autoScroll = true;
 let reconnectAttempts = 0;
-const MAX_RECONNECT_DELAY = 30000;
 
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -47,80 +88,71 @@ function connectWebSocket() {
     ws.onopen = () => { reconnectAttempts = 0; };
 
     ws.onmessage = (event) => {
-        const logsContent = document.getElementById('logs-content');
-        const el = document.createElement('div');
-        el.className = 'log-line';
+        const feed = document.getElementById('activity-content');
         const text = event.data;
 
-        if (text.includes('| ERROR    |')) {
-            el.classList.add('log-error');
-        } else if (text.includes('| WARNING  |')) {
-            el.classList.add('log-warning');
-        } else if (text.includes('| DEBUG    |')) {
-            el.classList.add('log-debug');
-        } else if (text.includes('| TRACE    |')) {
-            el.classList.add('log-trace');
-        } else if (text.includes('| SUCCESS  |') || (text.includes('| INFO     |') && (text.includes('completed') || text.includes('Sync complete') || text.includes('matched')))) {
-            el.classList.add('log-success');
+        // Only show important lines — skip debug/trace noise
+        if (text.includes('| DEBUG    |') || text.includes('| TRACE    |')) return;
+
+        // Remove "Connecting..." placeholder
+        const placeholder = feed.querySelector('p.text-center');
+        if (placeholder) placeholder.remove();
+
+        const el = document.createElement('div');
+        el.className = 'py-0.5 px-1 rounded-sm';
+
+        // Strip the timestamp and module path for cleaner display
+        let clean = text;
+        const pipeIdx = text.indexOf('|');
+        if (pipeIdx > 0) {
+            // Keep from the level onward: "INFO     | message"
+            const afterTime = text.substring(pipeIdx);
+            // Extract just the message part after the last |
+            const parts = afterTime.split('|');
+            if (parts.length >= 3) {
+                const level = parts[1].trim();
+                const msg = parts.slice(2).join('|').trim();
+                // Remove the module path prefix (e.g., "src.main:sync_loop:123 - ")
+                const dashIdx = msg.indexOf(' - ');
+                clean = dashIdx > 0 ? msg.substring(dashIdx + 3) : msg;
+
+                if (level === 'ERROR') {
+                    el.classList.add('text-red-400', 'bg-red-500/5', 'border-l-2', 'border-red-500');
+                } else if (level === 'WARNING') {
+                    el.classList.add('text-amber-400/80', 'bg-amber-500/5', 'border-l-2', 'border-amber-500');
+                } else if (level === 'SUCCESS' || clean.toLowerCase().includes('completed') || clean.toLowerCase().includes('matched')) {
+                    el.classList.add('text-teal-400/70');
+                } else {
+                    el.classList.add('text-white/30');
+                }
+            } else {
+                el.classList.add('text-white/30');
+            }
         } else {
-            el.classList.add('log-info');
+            el.classList.add('text-white/30');
         }
 
-        el.textContent = text;
-        logsContent.appendChild(el);
-        if (autoScroll) scrollToBottom();
+        el.textContent = clean;
+        feed.appendChild(el);
 
-        while (logsContent.children.length > 500) {
-            logsContent.removeChild(logsContent.firstChild);
+        // Auto-scroll
+        const container = document.getElementById('activity-feed');
+        container.scrollTop = container.scrollHeight;
+
+        // Keep last 100 lines
+        while (feed.children.length > 100) {
+            feed.removeChild(feed.firstChild);
         }
     };
 
     ws.onerror = () => {};
     ws.onclose = () => {
         reconnectAttempts++;
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
         setTimeout(connectWebSocket, delay);
     };
 }
 
-function scrollToBottom() {
-    const c = document.getElementById('logs-container');
-    c.scrollTop = c.scrollHeight;
-}
-
-function toggleAutoScroll() {
-    autoScroll = !autoScroll;
-    const btn = document.getElementById('btn-autoscroll');
-    if (autoScroll) {
-        btn.classList.add('text-amber-500', 'border-amber-700');
-        btn.classList.remove('text-white/25', 'border-border');
-        scrollToBottom();
-    } else {
-        btn.classList.remove('text-amber-500', 'border-amber-700');
-        btn.classList.add('text-white/25', 'border-border');
-    }
-}
-
-function clearLogs() {
-    const container = document.getElementById('logs-content');
-    while (container.firstChild) container.removeChild(container.firstChild);
-}
-
-document.getElementById('logs-container').addEventListener('scroll', (e) => {
-    const c = e.target;
-    const atBottom = Math.abs(c.scrollHeight - c.scrollTop - c.clientHeight) < 5;
-    autoScroll = atBottom;
-    const btn = document.getElementById('btn-autoscroll');
-    if (autoScroll) {
-        btn.classList.add('text-amber-500', 'border-amber-700');
-        btn.classList.remove('text-white/25', 'border-border');
-    } else {
-        btn.classList.remove('text-amber-500', 'border-amber-700');
-        btn.classList.add('text-white/25', 'border-border');
-    }
-});
-
 connectWebSocket();
-setTimeout(scrollToBottom, 120);
 </script>
 {% endblock %}
