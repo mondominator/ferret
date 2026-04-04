@@ -64,10 +64,7 @@
     <!-- ============================================================ -->
     <!-- MAIN: Cleanup dashboard                                       -->
     <!-- ============================================================ -->
-    <div id="cleanup-section"
-         hx-get="/api/cleanup"
-         hx-trigger="every 10s"
-         hx-swap="innerHTML">
+    <div id="cleanup-section">
         {% include "partials/cleanup_card.html" %}
     </div>
 
