@@ -86,16 +86,6 @@ async def save_settings(request: Request):
             except (ValueError, TypeError):
                 errors.append("REQUEST_TIMEOUT must be a valid integer")
 
-        # MAX_THREADS must be a positive integer
-        threads_val = data.get("MAX_THREADS", "")
-        if threads_val:
-            try:
-                threads_int = int(threads_val)
-                if threads_int <= 0:
-                    errors.append("MAX_THREADS must be a positive integer")
-            except (ValueError, TypeError):
-                errors.append("MAX_THREADS must be a valid integer")
-
         # URL fields must look like URLs (http/https) if non-empty
         url_pattern = re.compile(r'^https?://.+')
         for url_key in ("PLEX_BASEURL", "JELLYFIN_BASEURL", "EMBY_BASEURL", "SEERR_BASEURL",

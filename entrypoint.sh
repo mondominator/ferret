@@ -53,6 +53,7 @@ if [ "$(id -u)" = '0' ]; then
     chown -R "$PUID:$PGID" /app/.venv
     chown -R "$PUID:$PGID" "$LOG_DIR"
     chown -R "$PUID:$PGID" "$MARK_DIR"
+    chown -R "$PUID:$PGID" /app/data 2>/dev/null || true
 
     # Run the application as the created user
     exec gosu "$PUID:$PGID" "$@"

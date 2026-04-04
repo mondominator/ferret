@@ -184,6 +184,34 @@
                         class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors resize-y min-h-[72px] leading-relaxed">{%- if config.get('USER_MAPPING') -%}{{ config.get('USER_MAPPING') }}{%- endif -%}</textarea>
                     <span class="text-[11px] text-white/50 italic">Map usernames between servers: {"source":"destination"}</span>
                 </div>
+                <div class="flex flex-col gap-1">
+                    <label for="library_mapping" class="text-xs font-semibold text-white/40 tracking-wide">Library Mapping (JSON)</label>
+                    <textarea id="library_mapping" rows="2" placeholder='{"Movies":"Films"}'
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors resize-y min-h-[56px] leading-relaxed">{%- if config.get('LIBRARY_MAPPING') -%}{{ config.get('LIBRARY_MAPPING') }}{%- endif -%}</textarea>
+                    <span class="text-[11px] text-white/50 italic">Map library names between servers: {"source":"destination"}</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="blacklist_users" class="text-xs font-semibold text-white/40 tracking-wide">Blacklist Users</label>
+                    <input type="text" id="blacklist_users" placeholder="user1, user2" value="{{ config.get('BLACKLIST_USERS', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                    <span class="text-[11px] text-white/50 italic">Comma-separated users to exclude from syncing</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="whitelist_users" class="text-xs font-semibold text-white/40 tracking-wide">Whitelist Users</label>
+                    <input type="text" id="whitelist_users" placeholder="user1, user2" value="{{ config.get('WHITELIST_USERS', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                    <span class="text-[11px] text-white/50 italic">Only sync these users (leave empty for all)</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="blacklist_library" class="text-xs font-semibold text-white/40 tracking-wide">Blacklist Libraries</label>
+                    <input type="text" id="blacklist_library" placeholder="Music, Audiobooks" value="{{ config.get('BLACKLIST_LIBRARY', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="whitelist_library" class="text-xs font-semibold text-white/40 tracking-wide">Whitelist Libraries</label>
+                    <input type="text" id="whitelist_library" placeholder="Movies, TV Shows" value="{{ config.get('WHITELIST_LIBRARY', '') }}"
+                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
+                </div>
             </div>
         </div>
 
@@ -196,11 +224,6 @@
                 <div class="flex flex-col gap-1">
                     <label for="request_timeout" class="text-xs font-semibold text-white/40 tracking-wide">Request Timeout (seconds)</label>
                     <input type="number" id="request_timeout" placeholder="300" value="{{ config.get('REQUEST_TIMEOUT', '300') }}"
-                        class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label for="max_threads" class="text-xs font-semibold text-white/40 tracking-wide">Max Threads</label>
-                    <input type="number" id="max_threads" placeholder="1" value="{{ config.get('MAX_THREADS', '1') }}"
                         class="w-full px-3 py-2 bg-black border border-border rounded-sm text-sm text-white font-mono placeholder:text-white/40 focus:outline-none focus:border-amber-700 focus:ring-1 focus:ring-amber-500/20 transition-colors">
                 </div>
                 <div class="flex items-center justify-between gap-3 py-1">
@@ -377,11 +400,16 @@ async function saveSettings() {
         DEBUG_LEVEL: document.getElementById('debug_level').value,
         USER_MAPPING: document.getElementById('user_mapping').value,
         REQUEST_TIMEOUT: document.getElementById('request_timeout').value,
-        MAX_THREADS: document.getElementById('max_threads').value,
+
         GENERATE_GUIDS: document.getElementById('generate_guids').checked ? 'True' : 'False',
         GENERATE_LOCATIONS: document.getElementById('generate_locations').checked ? 'True' : 'False',
         LOG_FILE: document.getElementById('log_file').value,
         MARK_FILE: document.getElementById('mark_file').value,
+        LIBRARY_MAPPING: document.getElementById('library_mapping').value,
+        BLACKLIST_USERS: document.getElementById('blacklist_users').value,
+        WHITELIST_USERS: document.getElementById('whitelist_users').value,
+        BLACKLIST_LIBRARY: document.getElementById('blacklist_library').value,
+        WHITELIST_LIBRARY: document.getElementById('whitelist_library').value,
         SONARR_BASEURL: document.getElementById('sonarr_baseurl').value,
         RADARR_BASEURL: document.getElementById('radarr_baseurl').value,
         CLEANUP_ENABLED: document.getElementById('cleanup_enabled').checked ? 'True' : 'False',

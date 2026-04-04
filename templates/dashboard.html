@@ -64,7 +64,7 @@
     <!-- ============================================================ -->
     <!-- MAIN: Cleanup dashboard                                       -->
     <!-- ============================================================ -->
-    <div id="cleanup-section">
+    <div id="cleanup-section" hx-get="/api/cleanup" hx-trigger="cleanup-refresh from:body" hx-swap="innerHTML">
         {% include "partials/cleanup_card.html" %}
     </div>
 
@@ -174,7 +174,7 @@ document.addEventListener('click', function(e) {
         if (data.success) {
             showToast(data.message, 'success');
             /* Refresh cleanup card */
-            htmx.trigger('#cleanup-section', 'htmx:trigger');
+            htmx.trigger(document.body, 'cleanup-refresh');
         } else {
             showToast(data.message, 'error');
             btn.disabled = false;
