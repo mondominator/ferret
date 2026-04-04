@@ -4,7 +4,11 @@
     <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center gap-2">
             <span class="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Cleanup</span>
+            {% if status.cleanup_results and status.cleanup_results.dry_run %}
             <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-500 border border-amber-700">Dry Run</span>
+            {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide bg-teal-500/10 text-teal-400 border border-teal-500/20">Active</span>
+            {% endif %}
         </div>
         {% if status.cleanup_results and status.cleanup_results.scan_time %}
         <span class="text-[10px] text-white/25 tabular-nums">Scanned {{ status.cleanup_results.scan_time }}</span>
