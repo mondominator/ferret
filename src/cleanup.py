@@ -667,21 +667,12 @@ class CleanupEngine:
 
                 # Check if min_watched applies (0 = only flag never-watched items)
                 if rule.min_watched == 0:
-                    # "Requested & Unwatched" rule: if Seerr is configured,
-                    # ONLY flag items that were actually requested via Seerr.
-                    # Without Seerr, skip this rule entirely (no useful signal).
-                    if self.seerr:
-                        if not seerr_info:
-                            # Not a Seerr request -- skip
-                            continue
-                    else:
-                        # Seerr not configured -- skip the "Requested & Unwatched" rule
-                        continue
-
-                    # For "never watched" rules: skip anything watched on any server or Tautulli
+                    # Skip anything that's been watched on any server
                     if item_data["watched_on_any"]:
                         continue
-                    # Item was requested via Seerr AND never watched -- flag it
+                    # Item has never been watched on any server — flag it
+                    # Seerr info is attached as metadata (who requested it) but
+                    # doesn't gate the rule — ALL unwatched content gets flagged
                 else:
                     # For age-based rules: calculate days since last watch
                     last_viewed = item_data["last_viewed"]
@@ -784,7 +775,7 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
     ))
 
     rules.append(CleanupRule(
-        name="Requested & Unwatched",
+        name="Never Watched",
         media_type="all",  # both shows and movies
         max_age_days=0,  # not about age
         min_watched=0,  # flag items with zero watches
