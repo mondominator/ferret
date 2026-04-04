@@ -90,12 +90,23 @@ class CleanupEngine:
         if not dry_run:
             logger.warning("CLEANUP: dry_run=False was requested but is NOT supported yet. Forcing dry_run=True.")
 
-        # Parse exclusion list — comma-separated titles (case-insensitive)
+        # Parse exclusion list — comma-separated titles or patterns (case-insensitive)
+        # Supports wildcards: "Star*" matches anything starting with "Star"
+        # Supports exact matches: "Batman: The Animated Series"
         exclude_str = get_env_value(env, "CLEANUP_EXCLUDE_TITLES", "")
-        self.excluded_titles = set()
+        self.exclude_exact = set()
+        self.exclude_prefixes = []
         if exclude_str:
-            self.excluded_titles = {t.strip().lower() for t in exclude_str.split(",") if t.strip()}
-            logger.info(f"CLEANUP: Excluding {len(self.excluded_titles)} titles: {', '.join(sorted(self.excluded_titles))}")
+            for entry in exclude_str.split(","):
+                entry = entry.strip()
+                if not entry:
+                    continue
+                if entry.endswith("*"):
+                    self.exclude_prefixes.append(entry[:-1].lower())
+                else:
+                    self.exclude_exact.add(entry.lower())
+            total = len(self.exclude_exact) + len(self.exclude_prefixes)
+            logger.info(f"CLEANUP: {total} exclusion rules loaded")
 
     def _get_server_name(self, server) -> str:
         """Get a human-readable name for a server."""
@@ -377,7 +388,8 @@ class CleanupEngine:
                     continue
 
                 # Skip excluded titles (favorites/protected)
-                if item_data["title"].lower() in self.excluded_titles:
+                title_lower = item_data["title"].lower()
+                if title_lower in self.exclude_exact or any(title_lower.startswith(p) for p in self.exclude_prefixes):
                     logger.debug(f"CLEANUP: Skipping '{item_data['title']}' -- in exclusion list")
                     continue
 
