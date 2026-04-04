@@ -1086,6 +1086,50 @@ def run_cleanup(servers: list, env) -> CleanupResults | None:
 
     rules = build_cleanup_rules(env)
     engine = CleanupEngine(servers=servers, env=env, dry_run=dry_run)
+
+    # Snapshot previously flagged titles to detect newly flagged items
+    prev_flagged = set(engine.cleanup_state.get_all().keys())
+
     results = engine.scan(rules)
+
+    # Send Telegram notifications
+    try:
+        from src.notifications import TelegramNotifier
+        notifier = TelegramNotifier(env)
+
+        if notifier.enabled:
+            # Newly flagged items (not in previous state)
+            newly_flagged = []
+            for item in results.flagged_items:
+                if item.title.lower() not in prev_flagged:
+                    reason = ""
+                    if item.days_since_watched is not None:
+                        reason = f"not watched in {item.days_since_watched}d"
+                    elif item.days_in_library is not None:
+                        reason = f"in library {item.days_in_library}d, never watched"
+                    elif item.seerr_requested:
+                        reason = "requested but never watched"
+                    newly_flagged.append({
+                        "title": item.title,
+                        "media_type": item.media_type,
+                        "reason": reason,
+                    })
+            if newly_flagged:
+                notifier.notify_newly_flagged(newly_flagged)
+
+            # 7-day warning
+            warning_items = [
+                {"title": item.title, "days_until_deletion": item.days_until_deletion}
+                for item in results.flagged_items
+                if item.days_until_deletion is not None and item.days_until_deletion <= 7 and item.days_until_deletion > 0
+            ]
+            if warning_items:
+                notifier.notify_deletion_warning(warning_items)
+
+            # Deleted items
+            if results.deleted_items:
+                notifier.notify_deleted(results.deleted_items)
+    except Exception as e:
+        logger.error(f"CLEANUP: Notification error: {e}")
 
     return results
