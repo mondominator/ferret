@@ -333,7 +333,7 @@ class CleanupEngine:
                                                 watch_data[key]["last_viewed"] = ep_date
                             else:
                                 # Fast path: show-level check for shared users
-                                if show.isWatched or show.viewCount:
+                                if show.isWatched or show.viewCount or show.lastViewedAt:
                                     watch_data[key]["watched"] = True
                                 if show.lastViewedAt:
                                     vdate = show.lastViewedAt.replace(tzinfo=timezone.utc)
@@ -517,7 +517,7 @@ class CleanupEngine:
                     existing["servers_checked"].append(server_name)
 
                     # Track if watched on any server
-                    if item["watched"]:
+                    if item["watched"] or item["last_viewed"]:
                         existing["watched_on_any"] = True
 
                     # Keep the most recent watch date across all servers
