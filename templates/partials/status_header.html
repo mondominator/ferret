@@ -9,7 +9,7 @@
                 Syncing
             </span>
             {% if status.current_operation %}
-            <span class="text-[12px] text-white/30 italic truncate max-w-[240px]">{{ status.current_operation }}</span>
+            <span class="text-[12px] text-white/50 italic truncate max-w-[240px]">{{ status.current_operation }}</span>
             {% endif %}
             {% else %}
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wide bg-surface-raised text-white/40 border border-border-focus">
@@ -33,7 +33,7 @@
                     {% elif info.status == 'disconnected' %}bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]
                     {% else %}bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]{% endif %}"></span>
                 <span class="font-semibold text-white/80">{{ name }}</span>
-                <span class="text-[10px] text-white/25">{{ info.type }}</span>
+                <span class="text-[10px] text-white/50">{{ info.type }}</span>
             </span>
             {% endfor %}
             {% endif %}
@@ -45,7 +45,7 @@
                     {% if status.backfill_complete %}bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.5)]
                     {% else %}bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]{% endif %}"></span>
                 <span class="font-semibold text-white/80">Tautulli</span>
-                <span class="text-[10px] text-white/25">{% if status.backfill_complete %}{{ status.backfill_count }} backfilled{% else %}pending{% endif %}</span>
+                <span class="text-[10px] text-white/50">{% if status.backfill_complete %}{{ status.backfill_count }} backfilled{% else %}pending{% endif %}</span>
             </span>
             {% endif %}
 
@@ -54,7 +54,7 @@
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-surface-raised border border-border rounded-sm text-[11px]">
                 <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]"></span>
                 <span class="font-semibold text-white/80">Cleanup</span>
-                <span class="text-[10px] text-white/25">{{ status.cleanup_results.flagged_count }} flagged</span>
+                <span class="text-[10px] text-white/50">{{ status.cleanup_results.flagged_count }} flagged</span>
             </span>
             {% endif %}
 
@@ -63,15 +63,15 @@
             <!-- Stats -->
             <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 border border-border rounded-sm text-[11px]">
-                    <span class="text-white/25 font-medium">Syncs</span>
+                    <span class="text-white/50 font-medium">Syncs</span>
                     <span class="text-amber-500 font-bold tabular-nums">{{ status.sync_count }}</span>
                 </span>
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 border border-border rounded-sm text-[11px]">
-                    <span class="text-white/25 font-medium">Items</span>
+                    <span class="text-white/50 font-medium">Items</span>
                     <span class="text-amber-500 font-bold tabular-nums">{{ status.total_items_synced }}</span>
                 </span>
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 border border-border rounded-sm text-[11px]">
-                    <span class="text-white/25 font-medium">Last</span>
+                    <span class="text-white/50 font-medium">Last</span>
                     <span class="text-amber-500 font-bold tabular-nums">{% if status.last_sync_time %}{{ status.last_sync_time }}{% else %}Never{% endif %}</span>
                 </span>
             </div>
