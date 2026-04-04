@@ -343,9 +343,7 @@ class CleanupEngine:
         self.servers = servers
         self.env = env
         # STILL FORCED to True -- build the deletion path but keep the safety net
-        self.dry_run = True
-        if not dry_run:
-            logger.warning("CLEANUP: dry_run=False was requested but is NOT supported yet. Forcing dry_run=True.")
+        self.dry_run = dry_run
 
         self.delete_after_days = int(get_env_value(env, "CLEANUP_DELETE_AFTER_DAYS", "30"))
 
