@@ -14,8 +14,6 @@ from loguru import logger
 import requests
 
 from src.plex import Plex
-from src.jellyfin import Jellyfin
-from src.emby import Emby
 from src.jellyfin_emby import JellyfinEmby
 from src.functions import str_to_bool, get_env_value
 from src.cleanup_state import CleanupState

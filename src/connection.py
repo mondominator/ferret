@@ -83,7 +83,7 @@ def jellyfin_emby_server_connection(
                     status="disconnected",
                     version=""
                 )
-            logger.warning(f"Continuing with remaining servers...")
+            logger.warning("Continuing with remaining servers...")
 
     return servers
 
@@ -146,7 +146,7 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
                         status="disconnected",
                         version=""
                     )
-                logger.warning(f"Continuing with remaining servers...")
+                logger.warning("Continuing with remaining servers...")
 
     if plex_username_str and plex_password_str and plex_servername_str:
         plex_username = plex_username_str.split(",")
@@ -199,7 +199,7 @@ def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
                         status="disconnected",
                         version=""
                     )
-                logger.warning(f"Continuing with remaining servers...")
+                logger.warning("Continuing with remaining servers...")
 
     jellyfin_baseurl = get_env_value(env, "JELLYFIN_BASEURL", None)
     jellyfin_token = get_env_value(env, "JELLYFIN_TOKEN", None)
