@@ -41,4 +41,12 @@
   <Config Name="Seerr API Key" Target="SEERR_API_KEY" Default="" Mode="" Description="Seerr API key (Settings > General in Seerr UI)" Type="Variable" Display="always" Required="false" Mask="true"/>
   <Config Name="Request Timeout" Target="REQUEST_TIMEOUT" Default="300" Mode="" Description="API request timeout in seconds" Type="Variable" Display="advanced" Required="false" Mask="false">300</Config>
   <Config Name="SSL Bypass" Target="SSL_BYPASS" Default="False" Mode="" Description="Bypass SSL verification" Type="Variable" Display="advanced" Required="false" Mask="false">False</Config>
+  <Config Name="Cleanup Enabled" Target="CLEANUP_ENABLED" Default="False" Mode="" Description="Enable media lifecycle cleanup" Type="Variable" Display="always" Required="false" Mask="false">False</Config>
+  <Config Name="Cleanup Dry Run" Target="CLEANUP_DRY_RUN" Default="True" Mode="" Description="Log only, no actual deletions" Type="Variable" Display="always" Required="false" Mask="false">True</Config>
+  <Config Name="Sonarr URL" Target="SONARR_BASEURL" Default="" Mode="" Description="Sonarr server URL (e.g. http://192.168.1.100:8989)" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Sonarr API Key" Target="SONARR_API_KEY" Default="" Mode="" Description="Sonarr API key" Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Radarr URL" Target="RADARR_BASEURL" Default="" Mode="" Description="Radarr server URL (e.g. http://192.168.1.100:7878)" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Radarr API Key" Target="RADARR_API_KEY" Default="" Mode="" Description="Radarr API key" Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Cleanup Exclude Titles" Target="CLEANUP_EXCLUDE_TITLES" Default="" Mode="" Description="Comma-separated titles or patterns to exclude (e.g. Star*,Battlestar*)" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Data Directory" Target="/app/data" Default="/mnt/user/appdata/ferret/data" Mode="rw" Description="Persistent data (cleanup state)" Type="Path" Display="advanced" Required="false" Mask="false">/mnt/user/appdata/ferret/data</Config>
 </Container>
