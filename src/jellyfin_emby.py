@@ -191,7 +191,7 @@ class JellyfinEmby:
             logger.error(
                 f"{self.server_type}: Query {query_type} {query}\nResults {results}\n{e}",
             )
-            raise Exception(e)
+            raise
 
     def info(
         self, name_only: bool = False, version_only: bool = False
@@ -213,7 +213,7 @@ class JellyfinEmby:
 
         except Exception as e:
             logger.error(f"{self.server_type}: Get server name failed {e}")
-            raise Exception(e)
+            raise
 
     def get_users(self) -> dict[str, str]:
         try:
@@ -229,7 +229,7 @@ class JellyfinEmby:
             return users
         except Exception as e:
             logger.error(f"{self.server_type}: Get users failed {e}")
-            raise Exception(e)
+            raise
 
     def get_libraries(self) -> dict[str, str]:
         try:
@@ -299,7 +299,7 @@ class JellyfinEmby:
             return libraries
         except Exception as e:
             logger.error(f"{self.server_type}: Get libraries failed {e}")
-            raise Exception(e)
+            raise
 
     def get_user_library_watched(
         self,

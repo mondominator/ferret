@@ -1,6 +1,5 @@
 import os
-from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable
+from typing import Any
 from dotenv import load_dotenv
 import re
 from pathlib import PureWindowsPath, PurePosixPath
@@ -77,47 +76,6 @@ def match_list(
                 output.append(element)
 
     return output
-
-
-def future_thread_executor(
-    args: list[tuple[Callable[..., Any], ...]],
-    threads: int | None = None,
-    override_threads: bool = False,
-    max_threads: int | None = None,
-) -> list[Any]:
-    results: list[Any] = []
-
-    # Determine the number of workers, defaulting to 1 if os.cpu_count() returns None
-    cpu_threads: int = os.cpu_count() or 1  # Default to 1 if os.cpu_count() is None
-    workers: int = min(max_threads, cpu_threads * 2) if max_threads else cpu_threads * 2
-
-    # Adjust workers based on threads parameter and override_threads flag
-    if threads is not None:
-        workers = min(threads, workers)
-    if override_threads:
-        workers = threads if threads is not None else workers
-
-    # If only one worker, run in main thread to avoid overhead
-    if workers == 1:
-        for arg in args:
-            results.append(arg[0](*arg[1:]))
-        return results
-
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures_list: list[Future[Any]] = []
-
-        for arg in args:
-            # * arg unpacks the list into actual arguments
-            futures_list.append(executor.submit(*arg))
-
-        for out in futures_list:
-            try:
-                result = out.result()
-                results.append(result)
-            except Exception as e:
-                raise Exception(e)
-
-    return results
 
 
 def parse_string_to_list(string: str | None) -> list[str]:

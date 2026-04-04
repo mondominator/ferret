@@ -278,7 +278,7 @@ class Plex:
                 logger.error(f"Plex: Failed to login, {msg}, Error: {e}")
             else:
                 logger.error(f"Plex: Failed to login, Error: {e}")
-            raise Exception(e)
+            raise
 
     def info(self) -> str:
         return f"Plex {self.plex.friendlyName}: {self.plex.version}"
@@ -333,7 +333,7 @@ class Plex:
             return users
         except Exception as e:
             logger.error(f"Plex: Failed to get users, Error: {e}")
-            raise Exception(e)
+            raise
 
     def get_libraries(self) -> dict[str, str]:
         try:
@@ -359,7 +359,7 @@ class Plex:
             return output
         except Exception as e:
             logger.error(f"Plex: Failed to get libraries, Error: {e}")
-            raise Exception(e)
+            raise
 
     def get_user_library_watched(
         self, user_name: str, user_plex: PlexServer, library: MovieSection | ShowSection

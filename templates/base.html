@@ -8,10 +8,14 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    {% if status and status.dryrun %}
+    <div class="dryrun-banner">DRY RUN MODE -- No changes are being written</div>
+    {% endif %}
+
     <header class="top-bar">
         <div class="top-bar-content">
             <a href="/" class="brand" style="text-decoration: none; color: inherit; cursor: pointer;">
-                <h1>🦦 Ferret</h1>
+                <h1>Ferret</h1>
                 <span class="subtitle">Media Server Sync</span>
             </a>
             <div class="top-bar-nav">

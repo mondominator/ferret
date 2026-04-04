@@ -59,8 +59,6 @@ RUN --mount=type=cache,target=/tmp/.cache/uv \
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY . .
-
 RUN chmod +x *.sh && \
 	dos2unix *.sh
 
@@ -71,7 +69,7 @@ ENV RUN_ONLY_ONCE="False"
 ENV SLEEP_DURATION=3600
 ENV LOG_FILE="log.log"
 ENV MARK_FILE="mark.log"
-ENV REQUEST_TIME=300
+ENV REQUEST_TIMEOUT=300
 ENV GENERATE_GUIDS="True"
 ENV GENERATE_LOCATIONS="True"
 ENV MAX_THREADS=1
