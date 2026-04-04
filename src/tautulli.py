@@ -2,7 +2,6 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from loguru import logger
-from typing import Optional
 
 from plexapi.video import Movie, Episode
 

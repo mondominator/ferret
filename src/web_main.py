@@ -2,7 +2,6 @@
 Main entry point for Ferret with web dashboard.
 Runs the sync loop and web server concurrently.
 """
-import asyncio
 import threading
 import uvicorn
 from loguru import logger

@@ -51,7 +51,7 @@ async def settings_page(request: Request):
 
     return templates.TemplateResponse(
         "settings.html",
-        {"request": request, "config": config}
+        {"request": request, "config": config, "status": app_state.get_status()}
     )
 
 
@@ -167,26 +167,26 @@ async def websocket_logs(websocket: WebSocket):
         for log_line in recent_logs:
             await websocket.send_text(log_line)
 
-        # Keep connection alive and send new logs
-        # Track the last log we sent to detect new ones
-        sent_logs = set(recent_logs)
+        # Track position by index into the deque so duplicate lines aren't dropped
+        last_sent_index = len(app_state.recent_logs)
 
         while True:
-            await asyncio.sleep(0.5)  # Check more frequently
+            await asyncio.sleep(0.5)
 
-            # Check for new logs by comparing with what we've sent
             current_logs = list(app_state.recent_logs)
-            new_logs = [log for log in current_logs if log not in sent_logs]
+            current_len = len(current_logs)
+
+            if current_len < last_sent_index:
+                # Deque was trimmed/reset; send everything and reset index
+                new_logs = current_logs
+                last_sent_index = current_len
+            else:
+                new_logs = current_logs[last_sent_index:]
+                last_sent_index = current_len
 
             if new_logs:
-                logger.debug(f"Web: Sending {len(new_logs)} new logs to client")
                 for log_line in new_logs:
                     await websocket.send_text(log_line)
-                    sent_logs.add(log_line)
-
-                # Keep sent_logs from growing too large
-                if len(sent_logs) > 1000:
-                    sent_logs = set(current_logs[-500:])
 
     except WebSocketDisconnect:
         logger.info("Web: Log viewer WebSocket disconnected")

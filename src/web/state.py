@@ -2,11 +2,10 @@
 Shared state management for Ferret web dashboard.
 Stores sync status, server info, and recent activity.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from collections import deque
 import threading
-import os
 
 
 class AppState:
@@ -21,6 +20,9 @@ class AppState:
         self.next_sync_time: Optional[datetime] = None
         self.sync_count = 0
         self.current_operation: Optional[str] = None
+
+        # Dry-run mode flag
+        self.dryrun = False
 
         # Server status
         self.servers = {}  # {server_name: {type, status, version}}
@@ -40,14 +42,20 @@ class AppState:
         # Manual sync trigger
         self.manual_sync_requested = False
 
+    def set_dryrun(self, dryrun: bool):
+        """Set dry-run mode flag."""
+        with self._lock:
+            self.dryrun = dryrun
+
     def set_syncing(self, is_syncing: bool, operation: Optional[str] = None):
         """Set sync status."""
         with self._lock:
+            was_syncing = self.is_syncing
             self.is_syncing = is_syncing
             self.current_operation = operation
-            if is_syncing:
+            if not is_syncing and was_syncing:
+                # Only increment when a sync cycle completes
                 self.sync_count += 1
-            else:
                 self.last_sync_time = datetime.now()
 
     def add_server(self, name: str, server_type: str, status: str, version: str = ""):
@@ -107,6 +115,7 @@ class AppState:
 
             return {
                 "is_syncing": self.is_syncing,
+                "dryrun": self.dryrun,
                 "last_sync_time": last_sync_formatted,
                 "next_sync_time": self.next_sync_time.isoformat() if self.next_sync_time else None,
                 "sync_count": self.sync_count,

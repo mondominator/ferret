@@ -151,6 +151,9 @@ def main_loop(env) -> None:
     dryrun = str_to_bool(get_env_value(env, "DRYRUN", "False"))
     logger.info(f"Dryrun: {dryrun}")
 
+    if web_dashboard_enabled:
+        app_state.set_dryrun(dryrun)
+
     user_mapping_env = get_env_value(env, "USER_MAPPING", None)
     user_mapping = None
     if user_mapping_env:
@@ -315,7 +318,7 @@ def main_loop(env) -> None:
                 try:
                     s1_name = server_1.info(name_only=True) if hasattr(server_1, 'info') and isinstance(server_1, (Jellyfin, Emby)) else server_1.plex.friendlyName
                     s2_name = server_2.info(name_only=True) if hasattr(server_2, 'info') and isinstance(server_2, (Jellyfin, Emby)) else server_2.plex.friendlyName
-                except:
+                except Exception:
                     pass
 
                 logger.error(f"Sync failed between {s1_name} and {s2_name}: {e}")
@@ -403,4 +406,4 @@ def main() -> None:
             if len(times) > 0:
                 logger.info(f"Average time: {sum(times) / len(times)}")
             logger.info("Exiting")
-            os._exit(0)
+            sys.exit(0)

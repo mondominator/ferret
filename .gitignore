@@ -2,6 +2,11 @@
 *.prof
 tautulli.db
 tautulli.db-*
+*.db-wal
+*.db-shm
+
+# OS files
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
