@@ -1,0 +1,53 @@
+<div class="flex items-center justify-between flex-wrap gap-2 px-1">
+    <div class="flex items-center gap-4 flex-wrap">
+        {% if status.is_syncing %}
+        <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div>
+            <span class="text-sm text-amber-500 font-medium">Syncing</span>
+        </div>
+        {% if status.current_operation %}
+        <span class="text-[11px] text-white/30 italic">{{ status.current_operation }}</span>
+        {% endif %}
+        {% elif status.last_sync_time %}
+        <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
+            <span class="text-sm text-white/40">Synced {{ status.last_sync_time }}</span>
+        </div>
+        {% else %}
+        <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-white/20"></div>
+            <span class="text-sm text-white/30">No syncs yet</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="flex items-center gap-3">
+        {% if status.servers %}
+        <span class="text-xs text-white/30 tabular-nums">{{ status.servers|length }} server{{ 's' if status.servers|length != 1 else '' }}</span>
+        {% endif %}
+        {% if status.total_users > 0 %}
+        <span class="text-xs text-white/30 tabular-nums">{{ status.total_users }} user{{ 's' if status.total_users != 1 else '' }}</span>
+        {% endif %}
+        {% if status.sync_count > 0 %}
+        <span class="text-xs text-white/30 tabular-nums">{{ status.sync_count }} sync{{ 's' if status.sync_count != 1 else '' }}</span>
+        {% endif %}
+
+        <button hx-post="/api/sync/trigger" hx-swap="none"
+            {% if status.is_syncing %}disabled{% endif %}
+            class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-[11px] font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer disabled:cursor-not-allowed active:scale-95">
+            {% if status.is_syncing %}Syncing...{% else %}Sync Now{% endif %}
+        </button>
+    </div>
+</div>
+
+<!-- Server dots -->
+{% if status.servers %}
+<div class="flex items-center gap-3 px-1 flex-wrap mt-2">
+    {% for name, server in status.servers.items() %}
+    <div class="flex items-center gap-1.5">
+        <div class="w-1.5 h-1.5 rounded-full {% if server.status == 'connected' %}bg-teal-500{% else %}bg-red-500{% endif %}"></div>
+        <span class="text-[11px] text-white/50">{{ name }}{% if server.version %} <span class="text-white/20">{{ server.version }}</span>{% endif %}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
