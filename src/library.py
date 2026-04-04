@@ -135,7 +135,7 @@ def check_whitelist_logic(
     return skip_reason
 
 
-def filter_libaries(
+def filter_libraries(
     server_libraries: dict[str, str],
     blacklist_library: list[str],
     blacklist_library_type: list[str],
@@ -143,7 +143,7 @@ def filter_libaries(
     whitelist_library_type: list[str],
     library_mapping: dict[str, str] | None = None,
 ) -> list[str]:
-    filtered_libaries: list[str] = []
+    filtered_libraries: list[str] = []
     for library in server_libraries:
         skip_reason = check_skip_logic(
             library,
@@ -159,9 +159,9 @@ def filter_libaries(
             logger.info(f"Skipping library {library}: {skip_reason}")
             continue
 
-        filtered_libaries.append(library)
+        filtered_libraries.append(library)
 
-    return filtered_libaries
+    return filtered_libraries
 
 
 def setup_libraries(
@@ -179,8 +179,8 @@ def setup_libraries(
     logger.debug(f"{server_1.server_type}: Libraries and types {server_1_libraries}")
     logger.debug(f"{server_2.server_type}: Libraries and types {server_2_libraries}")
 
-    # Filter out all blacklist, whitelist libaries
-    filtered_server_1_libraries = filter_libaries(
+    # Filter out all blacklist, whitelist libraries
+    filtered_server_1_libraries = filter_libraries(
         server_1_libraries,
         blacklist_library,
         blacklist_library_type,
@@ -188,7 +188,7 @@ def setup_libraries(
         whitelist_library_type,
         library_mapping,
     )
-    filtered_server_2_libraries = filter_libaries(
+    filtered_server_2_libraries = filter_libraries(
         server_2_libraries,
         blacklist_library,
         blacklist_library_type,
@@ -197,11 +197,11 @@ def setup_libraries(
         library_mapping,
     )
 
-    output_server_1_libaries = match_list(
+    output_server_1_libraries = match_list(
         filtered_server_1_libraries, filtered_server_2_libraries, library_mapping
     )
-    output_server_2_libaries = match_list(
+    output_server_2_libraries = match_list(
         filtered_server_2_libraries, filtered_server_1_libraries, library_mapping
     )
 
-    return output_server_1_libaries, output_server_2_libaries
+    return output_server_1_libraries, output_server_2_libraries

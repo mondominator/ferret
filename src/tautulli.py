@@ -24,6 +24,8 @@ class TautulliLogger:
         self.test_mode = test_mode or database_path == "test"
         self.backfilled_users = set()  # Track which users have been backfilled this session
 
+        self._conn = None
+
         if self.test_mode:
             self.enabled = True
             logger.info("Tautulli: TEST MODE - Will log intended writes without database access")
@@ -36,6 +38,10 @@ class TautulliLogger:
                 )
             elif self.enabled:
                 logger.info(f"Tautulli: History logging enabled to {database_path}")
+                # Open a persistent connection with WAL mode to avoid locking issues
+                self._conn = sqlite3.connect(self.database_path, timeout=30)
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute("PRAGMA busy_timeout=5000")
 
     def entry_exists(
         self,
@@ -55,9 +61,8 @@ class TautulliLogger:
         if not self.enabled or self.test_mode:
             return False
 
-        conn = None
         try:
-            conn = sqlite3.connect(self.database_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
 
             cursor.execute(
@@ -74,9 +79,6 @@ class TautulliLogger:
         except sqlite3.Error as e:
             logger.warning(f"Tautulli: Error checking if entry exists: {e}")
             return False
-        finally:
-            if conn:
-                conn.close()
 
     def log_watch(
         self,
@@ -173,6 +175,14 @@ class TautulliLogger:
         except Exception as e:
             logger.warning(f"Tautulli: Failed to log watch for {item.title}: {e}")
 
+    def _get_connection(self) -> sqlite3.Connection:
+        """Return the persistent DB connection, reconnecting if needed."""
+        if self._conn is None:
+            self._conn = sqlite3.connect(self.database_path, timeout=30)
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
+        return self._conn
+
     def _insert_session(self, session_data: dict) -> None:
         """
         Insert a session into Tautulli's session_history table.
@@ -180,9 +190,8 @@ class TautulliLogger:
         Args:
             session_data: Dictionary containing session information
         """
-        conn = None
         try:
-            conn = sqlite3.connect(self.database_path)
+            conn = self._get_connection()
             cursor = conn.cursor()
 
             # Insert into session_history table with reference_id = id for proper linking
@@ -277,11 +286,10 @@ class TautulliLogger:
 
         except sqlite3.Error as e:
             logger.warning(f"Tautulli: Database error: {e}")
-            if conn:
+            try:
                 conn.rollback()
-        finally:
-            if conn:
-                conn.close()
+            except Exception:
+                pass
 
     def backfill_user_watched(
         self,

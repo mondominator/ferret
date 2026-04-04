@@ -59,9 +59,67 @@ async def settings_page(request: Request):
 async def save_settings(request: Request):
     """Save settings to .env file."""
     try:
+        import re
         data = await request.json()
         from src.functions import get_env_value
 
+        # --- Input validation ---
+        errors = []
+
+        # SLEEP_DURATION must be a positive integer
+        sleep_val = data.get("SLEEP_DURATION", "")
+        if sleep_val:
+            try:
+                sleep_int = int(sleep_val)
+                if sleep_int <= 0:
+                    errors.append("SLEEP_DURATION must be a positive integer")
+            except (ValueError, TypeError):
+                errors.append("SLEEP_DURATION must be a valid integer")
+
+        # REQUEST_TIMEOUT must be a positive integer
+        timeout_val = data.get("REQUEST_TIMEOUT", "")
+        if timeout_val:
+            try:
+                timeout_int = int(timeout_val)
+                if timeout_int <= 0:
+                    errors.append("REQUEST_TIMEOUT must be a positive integer")
+            except (ValueError, TypeError):
+                errors.append("REQUEST_TIMEOUT must be a valid integer")
+
+        # MAX_THREADS must be a positive integer
+        threads_val = data.get("MAX_THREADS", "")
+        if threads_val:
+            try:
+                threads_int = int(threads_val)
+                if threads_int <= 0:
+                    errors.append("MAX_THREADS must be a positive integer")
+            except (ValueError, TypeError):
+                errors.append("MAX_THREADS must be a valid integer")
+
+        # URL fields must look like URLs (http/https) if non-empty
+        url_pattern = re.compile(r'^https?://.+')
+        for url_key in ("PLEX_BASEURL", "JELLYFIN_BASEURL", "EMBY_BASEURL"):
+            url_val = data.get(url_key, "").strip()
+            if url_val:
+                # Support comma-separated URLs
+                for single_url in url_val.split(","):
+                    single_url = single_url.strip()
+                    if single_url and not url_pattern.match(single_url):
+                        errors.append(f"{url_key} must start with http:// or https:// (got: {single_url})")
+
+        # USER_MAPPING must be valid JSON if non-empty
+        user_mapping_val = data.get("USER_MAPPING", "").strip()
+        if user_mapping_val:
+            try:
+                import json
+                json.loads(user_mapping_val)
+            except (json.JSONDecodeError, TypeError):
+                errors.append("USER_MAPPING must be valid JSON")
+
+        if errors:
+            return {"success": False, "message": "; ".join(errors)}
+
+        # --- Save validated settings ---
         env_file = get_env_value(None, "ENV_FILE", ".env")
 
         # Read existing .env
@@ -88,7 +146,7 @@ async def save_settings(request: Request):
             f.writelines(updated_lines)
 
         logger.info("Settings saved successfully")
-        return {"success": True, "message": "Settings saved"}
+        return {"success": True, "message": "Settings saved. Changes will take effect on the next sync cycle."}
     except Exception as e:
         logger.error(f"Failed to save settings: {e}")
         return {"success": False, "message": str(e)}

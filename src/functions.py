@@ -46,20 +46,23 @@ def str_to_bool(value: str | None) -> bool:
     return str(value).lower() in ("y", "yes", "t", "true", "on", "1")
 
 
-# Get mapped value
+# Get mapped value (case-insensitive)
 def search_mapping(dictionary: dict[str, str], key_value: str) -> str | None:
+    # Exact match first
     if key_value in dictionary.keys():
         return dictionary[key_value]
-    elif key_value.lower() in dictionary.keys():
-        return dictionary[key_value.lower()]
     elif key_value in dictionary.values():
         return list(dictionary.keys())[list(dictionary.values()).index(key_value)]
-    elif key_value.lower() in dictionary.values():
-        return list(dictionary.keys())[
-            list(dictionary.values()).index(key_value.lower())
-        ]
-    else:
-        return None
+
+    # Case-insensitive match
+    key_lower = key_value.lower()
+    for k, v in dictionary.items():
+        if k.lower() == key_lower:
+            return v
+        if v.lower() == key_lower:
+            return k
+
+    return None
 
 
 # Return list of objects that exist in both lists including mappings
