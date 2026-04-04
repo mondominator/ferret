@@ -61,8 +61,8 @@ class CleanupState:
         """
         current_keys = {item.title.lower() for item in current_flagged}
 
-        # Remove items that dropped off
-        removed = [k for k in self.state if k not in current_keys]
+        # Remove items that dropped off (preserve the "exclusions" sub-dict)
+        removed = [k for k in self.state if k not in current_keys and k != "exclusions"]
         for k in removed:
             logger.info(f"CLEANUP STATE: '{k}' no longer flagged -- removing from countdown")
             del self.state[k]

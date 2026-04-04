@@ -56,7 +56,8 @@ def configure_logger(log_file: str = "log.log", debug_level: str = "INFO", prese
 
     # Add a sink for file logging and the console.
     logger.add(log_file, level=debug_level, mode="w")
-    logger.add(sys.stdout, level=debug_level)
+    if not preserve_handlers:
+        logger.add(sys.stdout, level=debug_level)
 
     if preserve_handlers:
         _logger_configured = True
@@ -412,6 +413,7 @@ def main() -> None:
             env = dotenv_values(env_file)
             run_only_once = str_to_bool(get_env_value(env, "RUN_ONLY_ONCE", "False"))
             sleep_duration = float(get_env_value(env, "SLEEP_DURATION", "3600"))
+            log_file = get_env_value(env, "LOG_FILE", "log.log")
             debug_level = get_env_value(env, "DEBUG_LEVEL", "INFO")
             if debug_level:
                 debug_level = debug_level.upper()

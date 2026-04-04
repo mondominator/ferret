@@ -822,7 +822,7 @@ class JellyfinEmby:
                     break
 
             if not user_id or not user_name:
-                logger.info(f"{user} {user_other} not found in Jellyfin")
+                logger.info(f"{user} {user_other} not found in {self.server_type}")
                 continue
 
             jellyfin_libraries = self.query(
@@ -873,7 +873,7 @@ class JellyfinEmby:
                 for jellyfin_library in jellyfin_libraries:
                     if jellyfin_library["Name"].lower() == library_name.lower():
                         library_id = jellyfin_library["Id"]
-                        continue
+                        break
 
                 if library_id:
                     try:

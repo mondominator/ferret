@@ -51,7 +51,7 @@ def jellyfin_emby_server_connection(
                         name=server.server_name,
                         server_type="Jellyfin",
                         status="connected",
-                        version=getattr(server, 'version', '')
+                        version=str(getattr(server, 'server_version', ''))
                     )
                 logger.info(f"Successfully connected to Jellyfin server: {server.server_name}")
 
@@ -65,7 +65,7 @@ def jellyfin_emby_server_connection(
                         name=server.server_name,
                         server_type="Emby",
                         status="connected",
-                        version=getattr(server, 'version', '')
+                        version=str(getattr(server, 'server_version', ''))
                     )
                 logger.info(f"Successfully connected to Emby server: {server.server_name}")
             else:

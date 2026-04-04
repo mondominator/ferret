@@ -246,7 +246,7 @@ class SeerrClient:
 class CleanupRule:
     name: str
     media_type: str  # "show", "movie", or "all"
-    max_age_days: int  # days since last watch
+    max_age_days: int = 0  # days since last watch (unused when min_watched=0)
     exclude_continuing: bool = True  # skip ongoing shows
     min_watched: int | None = None  # None = any watch counts, 0 = never watched
     seerr_only: bool = False  # only flag items that were requested via Seerr
@@ -1071,7 +1071,6 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
     rules.append(CleanupRule(
         name="Never Watched",
         media_type="all",
-        max_age_days=0,
         min_watched=0,
     ))
 
@@ -1079,7 +1078,6 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
     rules.append(CleanupRule(
         name="Requested & Unwatched Shows",
         media_type="show",
-        max_age_days=0,
         min_watched=0,
         seerr_only=True,
     ))
@@ -1087,7 +1085,6 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
     rules.append(CleanupRule(
         name="Requested & Unwatched Movies",
         media_type="movie",
-        max_age_days=0,
         min_watched=0,
         seerr_only=True,
     ))
@@ -1096,7 +1093,6 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
     rules.append(CleanupRule(
         name="Unmonitored Shows",
         media_type="show",
-        max_age_days=0,
         check_sonarr_status=True,
     ))
 
