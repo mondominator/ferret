@@ -145,10 +145,9 @@ function connectWebSocket() {
         }
 
         el.textContent = clean;
-        feed.appendChild(el);
-        document.getElementById('activity-feed').scrollTop = document.getElementById('activity-feed').scrollHeight;
+        feed.insertBefore(el, feed.firstChild);
 
-        while (feed.children.length > 100) feed.removeChild(feed.firstChild);
+        while (feed.children.length > 100) feed.removeChild(feed.lastChild);
     };
 
     ws.onerror = () => {};
