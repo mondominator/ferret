@@ -365,6 +365,11 @@ def main_loop(env) -> None:
         cleanup_results = run_cleanup(servers, env)
         if cleanup_results is not None and web_dashboard_enabled:
             app_state.set_cleanup_results(cleanup_results.to_dict())
+            # Expose the persistent CleanupState to the web layer for exclusions
+            from src.cleanup_state import CleanupState
+            from src.functions import get_env_value as _gev
+            state_path = _gev(env, "CLEANUP_STATE_FILE", "/app/data/cleanup_state.json")
+            app_state.set_cleanup_state(CleanupState(state_path))
     except Exception as e:
         logger.error(f"Cleanup scan failed: {e}")
 

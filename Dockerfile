@@ -108,10 +108,20 @@ ENV CLEANUP_SHOW_MAX_AGE=730
 ENV CLEANUP_MOVIE_MAX_AGE=730
 ENV CLEANUP_EXCLUDE_CONTINUING="True"
 ENV CLEANUP_EXCLUDE_TITLES=""
+ENV CLEANUP_DELETE_AFTER_DAYS=30
+ENV CLEANUP_STATE_FILE="/app/data/cleanup_state.json"
 
 # Seerr (Overseerr / Jellyseerr) integration
 ENV SEERR_BASEURL=""
 ENV SEERR_API_KEY=""
+
+# Sonarr integration (for unmonitored shows rule + deletion)
+ENV SONARR_BASEURL=""
+ENV SONARR_API_KEY=""
+
+# Radarr integration (for movie deletion)
+ENV RADARR_BASEURL=""
+ENV RADARR_API_KEY=""
 
 # Expose web dashboard port
 EXPOSE 8080

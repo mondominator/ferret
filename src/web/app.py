@@ -98,7 +98,8 @@ async def save_settings(request: Request):
 
         # URL fields must look like URLs (http/https) if non-empty
         url_pattern = re.compile(r'^https?://.+')
-        for url_key in ("PLEX_BASEURL", "JELLYFIN_BASEURL", "EMBY_BASEURL", "SEERR_BASEURL"):
+        for url_key in ("PLEX_BASEURL", "JELLYFIN_BASEURL", "EMBY_BASEURL", "SEERR_BASEURL",
+                        "SONARR_BASEURL", "RADARR_BASEURL"):
             url_val = data.get(url_key, "").strip()
             if url_val:
                 # Support comma-separated URLs
@@ -215,6 +216,75 @@ async def get_cleanup_card(request: Request):
         "partials/cleanup_card.html",
         {"request": request, "status": status, "cleanup_enabled": cleanup_enabled}
     )
+
+
+@app.post("/api/cleanup/exclude")
+async def exclude_cleanup_item(request: Request):
+    """
+    Exclude a title from cleanup. Adds it to the CLEANUP_EXCLUDE_TITLES env var
+    and removes it from the persistent countdown state.
+    """
+    try:
+        data = await request.json()
+        title = data.get("title", "").strip()
+
+        if not title:
+            return {"success": False, "message": "No title provided"}
+
+        from dotenv import dotenv_values
+        from src.functions import get_env_value
+
+        # 1. Remove from persistent cleanup state
+        cleanup_state = app_state.get_cleanup_state()
+        if cleanup_state:
+            cleanup_state.add_exclusion(title)
+
+        # 2. Add to CLEANUP_EXCLUDE_TITLES in .env so it persists across restarts
+        env_file = get_env_value(None, "ENV_FILE", ".env")
+        config = dotenv_values(env_file)
+        current_excludes = get_env_value(config, "CLEANUP_EXCLUDE_TITLES", "")
+
+        # Don't add duplicates
+        existing = [e.strip().lower() for e in current_excludes.split(",") if e.strip()]
+        if title.lower() not in existing:
+            new_excludes = f"{current_excludes}, {title}" if current_excludes else title
+            new_excludes = new_excludes.strip(", ")
+
+            # Write back to .env
+            with open(env_file, 'r') as f:
+                lines = f.readlines()
+
+            updated = False
+            updated_lines = []
+            for line in lines:
+                if line.strip().startswith("CLEANUP_EXCLUDE_TITLES =") or line.strip().startswith("CLEANUP_EXCLUDE_TITLES="):
+                    updated_lines.append(f'CLEANUP_EXCLUDE_TITLES = "{new_excludes}"\n')
+                    updated = True
+                else:
+                    updated_lines.append(line)
+
+            if not updated:
+                updated_lines.append(f'CLEANUP_EXCLUDE_TITLES = "{new_excludes}"\n')
+
+            with open(env_file, 'w') as f:
+                f.writelines(updated_lines)
+
+        # 3. Remove from current in-memory cleanup results
+        status = app_state.get_status()
+        if status.get("cleanup_results") and status["cleanup_results"].get("flagged_items"):
+            status["cleanup_results"]["flagged_items"] = [
+                item for item in status["cleanup_results"]["flagged_items"]
+                if item["title"].lower() != title.lower()
+            ]
+            status["cleanup_results"]["flagged_count"] = len(status["cleanup_results"]["flagged_items"])
+            app_state.set_cleanup_results(status["cleanup_results"])
+
+        logger.info(f"CLEANUP: Excluded '{title}' from cleanup via dashboard")
+        return {"success": True, "message": f"'{title}' excluded from cleanup"}
+
+    except Exception as e:
+        logger.error(f"Failed to exclude cleanup item: {e}")
+        return {"success": False, "message": str(e)}
 
 
 @app.get("/api/logs")

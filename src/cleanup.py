@@ -3,7 +3,9 @@ Media lifecycle cleanup engine for Ferret.
 Checks watch history across ALL connected servers (Plex, Jellyfin, Emby)
 and flags stale content for deletion.
 
-ALL ACTIONS ARE DRY RUN ONLY. No actual deletion is performed.
+Supports persistent flagging with a configurable countdown (default 30 days)
+before items become eligible for auto-deletion. Actual deletion is gated
+behind CLEANUP_DRY_RUN=False and still forced off until the user enables it.
 """
 
 from datetime import datetime, timezone
@@ -16,7 +18,100 @@ from src.jellyfin import Jellyfin
 from src.emby import Emby
 from src.jellyfin_emby import JellyfinEmby
 from src.functions import str_to_bool, get_env_value
+from src.cleanup_state import CleanupState
 
+
+# ---------------------------------------------------------------------------
+# Sonarr / Radarr API clients
+# ---------------------------------------------------------------------------
+
+class SonarrClient:
+    """Minimal client for Sonarr v3 API."""
+
+    def __init__(self, base_url: str, api_key: str):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.session = requests.Session()
+        self.session.headers.update({
+            "X-Api-Key": self.api_key,
+            "Accept": "application/json",
+        })
+
+    def get_all_series(self) -> list[dict]:
+        """Fetch every series from Sonarr."""
+        url = f"{self.base_url}/api/v3/series"
+        try:
+            resp = self.session.get(url, timeout=30)
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.error(f"SONARR: Failed to fetch series: {e}")
+            return []
+
+    def get_ended_unmonitored_series(self) -> list[dict]:
+        """Return series that have ended but are still monitored (candidates for unmonitoring)."""
+        all_series = self.get_all_series()
+        results = []
+        for s in all_series:
+            status = s.get("status", "").lower()
+            monitored = s.get("monitored", False)
+            if status == "ended" and monitored:
+                results.append(s)
+        logger.info(f"SONARR: Found {len(results)} ended-but-monitored series out of {len(all_series)} total")
+        return results
+
+    def delete_series(self, series_id: int, delete_files: bool = True) -> bool:
+        """Delete a series from Sonarr."""
+        url = f"{self.base_url}/api/v3/series/{series_id}?deleteFiles={'true' if delete_files else 'false'}"
+        try:
+            resp = self.session.delete(url, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"SONARR: Deleted series {series_id}")
+            return True
+        except Exception as e:
+            logger.error(f"SONARR: Failed to delete series {series_id}: {e}")
+            return False
+
+
+class RadarrClient:
+    """Minimal client for Radarr v3 API."""
+
+    def __init__(self, base_url: str, api_key: str):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.session = requests.Session()
+        self.session.headers.update({
+            "X-Api-Key": self.api_key,
+            "Accept": "application/json",
+        })
+
+    def get_all_movies(self) -> list[dict]:
+        """Fetch every movie from Radarr."""
+        url = f"{self.base_url}/api/v3/movie"
+        try:
+            resp = self.session.get(url, timeout=30)
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.error(f"RADARR: Failed to fetch movies: {e}")
+            return []
+
+    def delete_movie(self, movie_id: int, delete_files: bool = True) -> bool:
+        """Delete a movie from Radarr."""
+        url = f"{self.base_url}/api/v3/movie/{movie_id}?deleteFiles={'true' if delete_files else 'false'}"
+        try:
+            resp = self.session.delete(url, timeout=30)
+            resp.raise_for_status()
+            logger.info(f"RADARR: Deleted movie {movie_id}")
+            return True
+        except Exception as e:
+            logger.error(f"RADARR: Failed to delete movie {movie_id}: {e}")
+            return False
+
+
+# ---------------------------------------------------------------------------
+# Seerr client (unchanged from original)
+# ---------------------------------------------------------------------------
 
 class SeerrClient:
     """
@@ -144,6 +239,10 @@ class SeerrClient:
             return False
 
 
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
+
 @dataclass
 class CleanupRule:
     name: str
@@ -152,6 +251,7 @@ class CleanupRule:
     exclude_continuing: bool = True  # skip ongoing shows
     min_watched: int | None = None  # None = any watch counts, 0 = never watched
     seerr_only: bool = False  # only flag items that were requested via Seerr
+    check_sonarr_status: bool = False  # query Sonarr for ended+monitored series
 
 
 @dataclass
@@ -167,6 +267,9 @@ class FlaggedItem:
     seerr_requested: bool = False  # True if this title was requested via Seerr
     seerr_request_id: int | None = None  # Seerr request ID (for future deletion)
     seerr_requested_by: str | None = None  # Who requested it on Seerr
+    days_until_deletion: int | None = None  # Countdown from persistent state
+    sonarr_series_id: int | None = None  # Sonarr series ID (for deletion)
+    radarr_movie_id: int | None = None  # Radarr movie ID (for deletion)
 
 
 @dataclass
@@ -175,6 +278,8 @@ class CleanupResults:
     total_scanned: int = 0
     scan_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     dry_run: bool = True
+    deleted_items: list[str] = field(default_factory=list)
+    protected_count: int = 0  # items that were in exclusion list
 
     @property
     def flagged_count(self) -> int:
@@ -188,6 +293,14 @@ class CleanupResults:
     def flagged_movies(self) -> list[FlaggedItem]:
         return [i for i in self.flagged_items if i.media_type == "movie"]
 
+    @property
+    def deleting_soon_count(self) -> int:
+        """Items deleting in < 7 days."""
+        return sum(
+            1 for i in self.flagged_items
+            if i.days_until_deletion is not None and i.days_until_deletion < 7
+        )
+
     def to_dict(self) -> dict:
         return {
             "flagged_count": self.flagged_count,
@@ -196,6 +309,9 @@ class CleanupResults:
             "total_scanned": self.total_scanned,
             "scan_time": self.scan_time.isoformat(),
             "dry_run": self.dry_run,
+            "deleting_soon_count": self.deleting_soon_count,
+            "protected_count": self.protected_count,
+            "deleted_items": self.deleted_items,
             "flagged_items": [
                 {
                     "title": item.title,
@@ -209,27 +325,32 @@ class CleanupResults:
                     "seerr_requested": item.seerr_requested,
                     "seerr_request_id": item.seerr_request_id,
                     "seerr_requested_by": item.seerr_requested_by,
+                    "days_until_deletion": item.days_until_deletion,
                 }
                 for item in self.flagged_items
             ],
         }
 
 
+# ---------------------------------------------------------------------------
+# Cleanup engine
+# ---------------------------------------------------------------------------
+
 class CleanupEngine:
     def __init__(self, servers: list, env, dry_run: bool = True):
         self.servers = servers
         self.env = env
-        # Always force dry_run to True for safety
+        # STILL FORCED to True -- build the deletion path but keep the safety net
         self.dry_run = True
         if not dry_run:
             logger.warning("CLEANUP: dry_run=False was requested but is NOT supported yet. Forcing dry_run=True.")
 
-        # Parse exclusion list — comma-separated titles or patterns (case-insensitive)
-        # Supports wildcards: "Star*" matches anything starting with "Star"
-        # Supports exact matches: "Batman: The Animated Series"
+        self.delete_after_days = int(get_env_value(env, "CLEANUP_DELETE_AFTER_DAYS", "30"))
+
+        # Parse exclusion list -- comma-separated titles or patterns (case-insensitive)
         exclude_str = get_env_value(env, "CLEANUP_EXCLUDE_TITLES", "")
-        self.exclude_exact = set()
-        self.exclude_prefixes = []
+        self.exclude_exact: set[str] = set()
+        self.exclude_prefixes: list[str] = []
         if exclude_str:
             for entry in exclude_str.split(","):
                 entry = entry.strip()
@@ -252,6 +373,30 @@ class CleanupEngine:
             logger.info(f"CLEANUP: Seerr integration enabled ({seerr_url})")
         else:
             logger.debug("CLEANUP: Seerr integration disabled (SEERR_BASEURL or SEERR_API_KEY not set)")
+
+        # Initialize Sonarr client if configured
+        self.sonarr: SonarrClient | None = None
+        sonarr_url = get_env_value(env, "SONARR_BASEURL", "")
+        sonarr_key = get_env_value(env, "SONARR_API_KEY", "")
+        if sonarr_url and sonarr_key:
+            self.sonarr = SonarrClient(sonarr_url, sonarr_key)
+            logger.info(f"CLEANUP: Sonarr integration enabled ({sonarr_url})")
+        else:
+            logger.debug("CLEANUP: Sonarr integration disabled (SONARR_BASEURL or SONARR_API_KEY not set)")
+
+        # Initialize Radarr client if configured
+        self.radarr: RadarrClient | None = None
+        radarr_url = get_env_value(env, "RADARR_BASEURL", "")
+        radarr_key = get_env_value(env, "RADARR_API_KEY", "")
+        if radarr_url and radarr_key:
+            self.radarr = RadarrClient(radarr_url, radarr_key)
+            logger.info(f"CLEANUP: Radarr integration enabled ({radarr_url})")
+        else:
+            logger.debug("CLEANUP: Radarr integration disabled (RADARR_BASEURL or RADARR_API_KEY not set)")
+
+        # Persistent state
+        state_path = get_env_value(env, "CLEANUP_STATE_FILE", "/app/data/cleanup_state.json")
+        self.cleanup_state = CleanupState(state_path)
 
     def _get_server_name(self, server) -> str:
         """Get a human-readable name for a server."""
@@ -546,6 +691,130 @@ class CleanupEngine:
 
         return merged
 
+    # ------------------------------------------------------------------
+    # Sonarr-based rule scanning
+    # ------------------------------------------------------------------
+
+    def _scan_sonarr_unmonitored(self, rule: CleanupRule, results: CleanupResults) -> int:
+        """
+        Handle the 'Unmonitored Shows' rule: query Sonarr for ended+monitored
+        series and flag them. Returns count of items flagged.
+        """
+        if not self.sonarr:
+            logger.warning("CLEANUP: Sonarr rule enabled but SONARR_BASEURL/SONARR_API_KEY not set -- skipping")
+            return 0
+
+        ended_series = self.sonarr.get_ended_unmonitored_series()
+        flagged_count = 0
+
+        for series in ended_series:
+            title = series.get("title", "Unknown")
+            title_lower = title.lower()
+
+            # Check exclusion list
+            if title_lower in self.exclude_exact or any(title_lower.startswith(p) for p in self.exclude_prefixes):
+                logger.debug(f"CLEANUP: Skipping '{title}' -- in exclusion list")
+                results.protected_count += 1
+                continue
+
+            # Seerr info
+            seerr_info: dict | None = self.seerr_titles.get(title_lower)
+
+            flagged = FlaggedItem(
+                title=title,
+                media_type="show",
+                last_watched_date=None,
+                last_watched_server=None,
+                days_since_watched=None,
+                rule_name=rule.name,
+                servers_checked=["Sonarr"],
+                library_name="",
+                seerr_requested=seerr_info is not None,
+                seerr_request_id=seerr_info["request_id"] if seerr_info else None,
+                seerr_requested_by=seerr_info["requested_by"] if seerr_info else None,
+                sonarr_series_id=series.get("id"),
+            )
+            results.flagged_items.append(flagged)
+            flagged_count += 1
+
+            seerr_tag = f" [Seerr req by {seerr_info['requested_by']}]" if seerr_info else ""
+            logger.info(
+                f"CLEANUP [DRY RUN]: Would flag '{title}'{seerr_tag} "
+                f"-- ended series still monitored in Sonarr (id={series.get('id')})"
+            )
+
+        return flagged_count
+
+    # ------------------------------------------------------------------
+    # Deletion logic (behind dry_run gate)
+    # ------------------------------------------------------------------
+
+    def _perform_deletions(self, results: CleanupResults) -> None:
+        """
+        Delete items that have been flagged for >= delete_after_days.
+        Only runs when dry_run is False (currently forced True).
+        """
+        if self.dry_run:
+            return
+
+        ready_keys = self.cleanup_state.items_ready_for_deletion(self.delete_after_days)
+        if not ready_keys:
+            return
+
+        logger.info(f"CLEANUP: {len(ready_keys)} items ready for deletion (flagged >= {self.delete_after_days} days)")
+
+        # Build a lookup from the current flagged items
+        flagged_by_key: dict[str, FlaggedItem] = {}
+        for item in results.flagged_items:
+            flagged_by_key[item.title.lower()] = item
+
+        # Also build Sonarr title->id and Radarr title->id maps for deletion
+        sonarr_title_map: dict[str, int] = {}
+        radarr_title_map: dict[str, int] = {}
+
+        if self.sonarr:
+            for series in self.sonarr.get_all_series():
+                sonarr_title_map[series.get("title", "").lower()] = series.get("id")
+
+        if self.radarr:
+            for movie in self.radarr.get_all_movies():
+                radarr_title_map[movie.get("title", "").lower()] = movie.get("id")
+
+        for key in ready_keys:
+            item = flagged_by_key.get(key)
+            if not item:
+                continue
+
+            deleted = False
+
+            # Delete from Sonarr (shows)
+            if item.media_type == "show":
+                series_id = item.sonarr_series_id or sonarr_title_map.get(key)
+                if series_id and self.sonarr:
+                    if self.sonarr.delete_series(series_id):
+                        deleted = True
+                        logger.info(f"CLEANUP: DELETED show '{item.title}' from Sonarr (id={series_id})")
+
+            # Delete from Radarr (movies)
+            elif item.media_type == "movie":
+                movie_id = item.radarr_movie_id or radarr_title_map.get(key)
+                if movie_id and self.radarr:
+                    if self.radarr.delete_movie(movie_id):
+                        deleted = True
+                        logger.info(f"CLEANUP: DELETED movie '{item.title}' from Radarr (id={movie_id})")
+
+            # Clear Seerr request if applicable
+            if deleted and item.seerr_request_id and self.seerr:
+                self.seerr.delete_request(item.seerr_request_id)
+                logger.info(f"CLEANUP: Cleared Seerr request {item.seerr_request_id} for '{item.title}'")
+
+            if deleted:
+                results.deleted_items.append(item.title)
+
+    # ------------------------------------------------------------------
+    # Main scan
+    # ------------------------------------------------------------------
+
     def scan(self, rules: list[CleanupRule]) -> CleanupResults:
         """
         Scan all servers and return items that match cleanup rules.
@@ -561,6 +830,7 @@ class CleanupEngine:
 
         logger.info("CLEANUP: Starting media lifecycle scan across all servers")
         logger.info(f"CLEANUP: Dry run mode: {self.dry_run}")
+        logger.info(f"CLEANUP: Delete after: {self.delete_after_days} days")
         logger.info(f"CLEANUP: Rules: {[r.name for r in rules]}")
 
         # Step 1: Gather media from all servers
@@ -599,6 +869,13 @@ class CleanupEngine:
 
         # Step 3: Apply rules
         for rule in rules:
+            # Special handling for Sonarr-based rules
+            if rule.check_sonarr_status:
+                logger.info(f"CLEANUP: Applying Sonarr rule '{rule.name}'")
+                rule_flagged = self._scan_sonarr_unmonitored(rule, results)
+                logger.info(f"CLEANUP: Rule '{rule.name}' flagged {rule_flagged} items")
+                continue
+
             logger.info(f"CLEANUP: Applying rule '{rule.name}' (type={rule.media_type}, max_age={rule.max_age_days}d)")
             rule_flagged = 0
 
@@ -611,6 +888,7 @@ class CleanupEngine:
                 title_lower = item_data["title"].lower()
                 if title_lower in self.exclude_exact or any(title_lower.startswith(p) for p in self.exclude_prefixes):
                     logger.debug(f"CLEANUP: Skipping '{item_data['title']}' -- in exclusion list")
+                    results.protected_count += 1
                     continue
 
                 # Skip continuing shows if configured
@@ -630,9 +908,7 @@ class CleanupEngine:
                     # Skip anything that's been watched on any server
                     if item_data["watched_on_any"]:
                         continue
-                    # Item has never been watched on any server — flag it
-                    # Seerr info is attached as metadata (who requested it) but
-                    # doesn't gate the rule — ALL unwatched content gets flagged
+                    # Item has never been watched on any server -- flag it
                 else:
                     # For age-based rules: calculate days since last watch
                     last_viewed = item_data["last_viewed"]
@@ -692,22 +968,32 @@ class CleanupEngine:
                         f"(threshold: {rule.max_age_days}d)"
                     )
 
-                # NOTE: When dry_run is eventually disabled, this is where we would
-                # call self.seerr.delete_request(seerr_info["request_id"]) to clear
-                # the Seerr request for deleted content.
-
             logger.info(f"CLEANUP: Rule '{rule.name}' flagged {rule_flagged} items")
 
-        # Sort flagged items: never-watched first, then by days since watched (descending)
+        # Step 4: Update persistent state and add countdown to each item
+        self.cleanup_state.update(results.flagged_items)
+
+        for item in results.flagged_items:
+            item.days_until_deletion = self.cleanup_state.days_until_deletion(
+                item.title, self.delete_after_days
+            )
+
+        # Step 5: Perform deletions if dry_run is off (currently forced on)
+        self._perform_deletions(results)
+
+        # Sort flagged items: soonest deletion first, then never-watched
         results.flagged_items.sort(
-            key=lambda x: (x.days_since_watched is not None, -(x.days_since_watched or 0))
+            key=lambda x: (
+                x.days_until_deletion if x.days_until_deletion is not None else 9999,
+            )
         )
 
         logger.info(
             f"CLEANUP: Scan complete. "
             f"Scanned {results.total_scanned} items, "
             f"flagged {results.flagged_count} "
-            f"({len(results.flagged_shows)} shows, {len(results.flagged_movies)} movies)"
+            f"({len(results.flagged_shows)} shows, {len(results.flagged_movies)} movies), "
+            f"protected {results.protected_count}"
         )
 
         return results
@@ -756,6 +1042,14 @@ def build_cleanup_rules(env) -> list[CleanupRule]:
         max_age_days=0,
         min_watched=0,
         seerr_only=True,
+    ))
+
+    # Sonarr: ended shows still monitored
+    rules.append(CleanupRule(
+        name="Unmonitored Shows",
+        media_type="show",
+        max_age_days=0,
+        check_sonarr_status=True,
     ))
 
     return rules
