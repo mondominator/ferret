@@ -1,14 +1,14 @@
-<div class="logs-footer" hx-get="/api/status/footer" hx-trigger="every 2s" hx-swap="outerHTML">
-    <div class="sync-status-compact">
+<div class="status-strip" style="border-top: 1px solid var(--border); border-radius: 0;" hx-get="/api/status/footer" hx-trigger="every 2s" hx-swap="outerHTML">
+    <div class="status-strip-left">
         {% if status.is_syncing %}
-        <span class="status-badge syncing">Syncing</span>
+        <span class="sync-badge syncing"><span class="sync-dot"></span> Syncing</span>
         {% if status.current_operation %}
-        <span class="operation-text">{{ status.current_operation }}</span>
+        <span class="op-label">{{ status.current_operation }}</span>
         {% endif %}
         {% else %}
-        <span class="status-badge idle">Idle</span>
+        <span class="sync-badge idle">Idle</span>
         {% if status.last_sync_time %}
-        <span class="operation-text">Last sync: {{ status.last_sync_time }}</span>
+        <span class="op-label">Last sync: {{ status.last_sync_time }}</span>
         {% endif %}
         {% endif %}
     </div>
