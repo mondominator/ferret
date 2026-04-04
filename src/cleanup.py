@@ -418,7 +418,7 @@ class CleanupEngine:
                         all_shows = server.query(
                             f"/Users/{user_id}/Items"
                             + f"?ParentId={library_id}&IncludeItemTypes=Series&Recursive=True"
-                            + "&Fields=ProviderIds,Path,Status",
+                            + "&Fields=ProviderIds,Path,Status,UserDataLastPlayedDate",
                             "get",
                         )
                         if all_shows and isinstance(all_shows, dict):
@@ -432,6 +432,20 @@ class CleanupEngine:
                                 most_recent_watch = None
                                 any_watched = False
 
+                                # Check show-level watched status first
+                                show_user_data = show.get("UserData", {})
+                                if show_user_data.get("Played"):
+                                    any_watched = True
+                                show_last_played = show_user_data.get("LastPlayedDate")
+                                if show_last_played:
+                                    try:
+                                        show_date = datetime.fromisoformat(show_last_played.replace("Z", "+00:00"))
+                                        most_recent_watch = show_date
+                                        any_watched = True
+                                    except (ValueError, TypeError):
+                                        pass
+
+                                # Then check individual episodes for more precise dates
                                 episodes = server.query(
                                     f"/Shows/{show_id}/Episodes"
                                     + f"?userId={user_id}&Fields=UserDataLastPlayedDate",
