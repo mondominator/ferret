@@ -1,90 +1,34 @@
 {% extends "base.html" %}
 
-{% block nav_dashboard %} active{% endblock %}
+{% block nav_dashboard %} nav-active{% endblock %}
 {% block nav_settings %}{% endblock %}
 
 {% block content %}
-<!-- Status Strip -->
-<div class="status-strip" hx-get="/api/status/header" hx-trigger="every 2s" hx-swap="outerHTML">
-    <div class="status-strip-left">
-        {% if status.is_syncing %}
-        <span class="sync-badge syncing"><span class="sync-dot"></span> Syncing</span>
-        {% if status.current_operation %}
-        <span class="op-label">{{ status.current_operation }}</span>
-        {% endif %}
-        {% else %}
-        <span class="sync-badge idle">Idle</span>
-        {% endif %}
-
-        {% if status.dryrun %}
-        <span class="sync-badge dryrun">Dry Run</span>
-        {% endif %}
-
-        {% if status.servers %}
-        <span class="strip-divider"></span>
-        {% for name, info in status.servers.items() %}
-        <span class="pill">
-            <span class="pill-dot {{ info.status }}"></span>
-            <span class="pill-name">{{ name }}</span>
-            <span class="pill-meta">{{ info.type }}</span>
-        </span>
-        {% endfor %}
-        {% endif %}
-
-        {% if status.tautulli_enabled %}
-        <span class="pill">
-            <span class="pill-dot {% if status.backfill_complete %}connected{% else %}pending{% endif %}"></span>
-            <span class="pill-name">Tautulli</span>
-            <span class="pill-meta">{% if status.backfill_complete %}{{ status.backfill_count }} backfilled{% else %}pending{% endif %}</span>
-        </span>
-        {% endif %}
-
-        <span class="strip-divider"></span>
-
-        <span class="stat-chip">
-            <span class="stat-chip-label">Syncs</span>
-            <span class="stat-chip-value">{{ status.sync_count }}</span>
-        </span>
-        <span class="stat-chip">
-            <span class="stat-chip-label">Items</span>
-            <span class="stat-chip-value">{{ status.total_items_synced }}</span>
-        </span>
-        <span class="stat-chip">
-            <span class="stat-chip-label">Last</span>
-            <span class="stat-chip-value">{% if status.last_sync_time %}{{ status.last_sync_time }}{% else %}Never{% endif %}</span>
-        </span>
-    </div>
-    <div class="status-strip-right">
-        <button
-            class="btn-sync"
-            hx-post="/api/sync/trigger"
-            hx-swap="none"
-            {% if status.is_syncing %}disabled{% endif %}>
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 8a7 7 0 0 1 11.9-5"/>
-                <path d="M15 8a7 7 0 0 1-11.9 5"/>
-                <path d="M11 1l2 2-2 2"/>
-                <path d="M5 11l-2 2 2 2"/>
-            </svg>
-            Sync Now
-        </button>
-    </div>
-</div>
+<!-- Status Bar -->
+{% include "partials/status_header.html" %}
 
 <!-- Log Viewer -->
-<div class="log-panel">
-    <div class="log-panel-header">
-        <span class="log-panel-title">
+<div class="flex-1 flex flex-col bg-surface border border-border rounded overflow-hidden min-h-0">
+    <!-- Log Header -->
+    <div class="flex items-center justify-between px-3.5 py-2 border-b border-border shrink-0 sm:px-4">
+        <div class="flex items-center gap-2">
             <span class="live-dot"></span>
-            Live Logs
-        </span>
-        <div class="log-panel-actions">
-            <button class="log-action-btn active" id="btn-autoscroll" onclick="toggleAutoScroll()">Auto-scroll</button>
-            <button class="log-action-btn" onclick="clearLogs()">Clear</button>
+            <span class="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Live Logs</span>
+        </div>
+        <div class="flex gap-1">
+            <button id="btn-autoscroll" onclick="toggleAutoScroll()"
+                class="px-2 py-0.5 text-[10px] font-medium rounded border border-border-focus text-amber-500 bg-transparent hover:bg-surface-raised transition-colors cursor-pointer font-sans">
+                Auto-scroll
+            </button>
+            <button onclick="clearLogs()"
+                class="px-2 py-0.5 text-[10px] font-medium rounded border border-border text-white/25 bg-transparent hover:text-white/50 hover:border-border-focus transition-colors cursor-pointer font-sans">
+                Clear
+            </button>
         </div>
     </div>
-    <div id="logs-container" class="logs-container">
-        <div id="logs-content" class="logs-content"></div>
+    <!-- Log Content -->
+    <div id="logs-container" class="logs-container flex-1 overflow-y-auto bg-black font-mono text-[13px] leading-relaxed">
+        <div id="logs-content" class="py-2"></div>
     </div>
 </div>
 {% endblock %}
@@ -100,18 +44,14 @@ function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${window.location.host}/ws/logs`);
 
-    ws.onopen = () => {
-        reconnectAttempts = 0;
-    };
+    ws.onopen = () => { reconnectAttempts = 0; };
 
     ws.onmessage = (event) => {
         const logsContent = document.getElementById('logs-content');
         const el = document.createElement('div');
         el.className = 'log-line';
-
         const text = event.data;
 
-        // Classify log level
         if (text.includes('| ERROR    |')) {
             el.classList.add('log-error');
         } else if (text.includes('| WARNING  |')) {
@@ -128,17 +68,14 @@ function connectWebSocket() {
 
         el.textContent = text;
         logsContent.appendChild(el);
-
         if (autoScroll) scrollToBottom();
 
-        // Keep last 500 lines
         while (logsContent.children.length > 500) {
             logsContent.removeChild(logsContent.firstChild);
         }
     };
 
     ws.onerror = () => {};
-
     ws.onclose = () => {
         reconnectAttempts++;
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
@@ -154,23 +91,33 @@ function scrollToBottom() {
 function toggleAutoScroll() {
     autoScroll = !autoScroll;
     const btn = document.getElementById('btn-autoscroll');
-    btn.classList.toggle('active', autoScroll);
-    if (autoScroll) scrollToBottom();
+    if (autoScroll) {
+        btn.classList.add('text-amber-500', 'border-amber-700');
+        btn.classList.remove('text-white/25', 'border-border');
+        scrollToBottom();
+    } else {
+        btn.classList.remove('text-amber-500', 'border-amber-700');
+        btn.classList.add('text-white/25', 'border-border');
+    }
 }
 
 function clearLogs() {
     const container = document.getElementById('logs-content');
-    while (container.firstChild) {
-        container.removeChild(container.firstChild);
-    }
+    while (container.firstChild) container.removeChild(container.firstChild);
 }
 
-// Detect manual scroll
 document.getElementById('logs-container').addEventListener('scroll', (e) => {
     const c = e.target;
     const atBottom = Math.abs(c.scrollHeight - c.scrollTop - c.clientHeight) < 5;
     autoScroll = atBottom;
-    document.getElementById('btn-autoscroll').classList.toggle('active', autoScroll);
+    const btn = document.getElementById('btn-autoscroll');
+    if (autoScroll) {
+        btn.classList.add('text-amber-500', 'border-amber-700');
+        btn.classList.remove('text-white/25', 'border-border');
+    } else {
+        btn.classList.remove('text-amber-500', 'border-amber-700');
+        btn.classList.add('text-white/25', 'border-border');
+    }
 });
 
 connectWebSocket();

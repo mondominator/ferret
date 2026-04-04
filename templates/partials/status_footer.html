@@ -1,14 +1,19 @@
-<div class="status-strip" style="border-top: 1px solid var(--border); border-radius: 0;" hx-get="/api/status/footer" hx-trigger="every 2s" hx-swap="outerHTML">
-    <div class="status-strip-left">
+<div class="flex items-center gap-2 px-3.5 py-2 bg-surface border-t border-border" hx-get="/api/status/footer" hx-trigger="every 2s" hx-swap="outerHTML">
+    <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0">
         {% if status.is_syncing %}
-        <span class="sync-badge syncing"><span class="sync-dot"></span> Syncing</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wide bg-amber-500 text-black sync-pulse">
+            <span class="w-1.5 h-1.5 rounded-full bg-current dot-blink"></span>
+            Syncing
+        </span>
         {% if status.current_operation %}
-        <span class="op-label">{{ status.current_operation }}</span>
+        <span class="text-[12px] text-white/30 italic truncate max-w-[240px]">{{ status.current_operation }}</span>
         {% endif %}
         {% else %}
-        <span class="sync-badge idle">Idle</span>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wide bg-surface-raised text-white/40 border border-border-focus">
+            Idle
+        </span>
         {% if status.last_sync_time %}
-        <span class="op-label">Last sync: {{ status.last_sync_time }}</span>
+        <span class="text-[12px] text-white/30 italic">Last sync: {{ status.last_sync_time }}</span>
         {% endif %}
         {% endif %}
     </div>
