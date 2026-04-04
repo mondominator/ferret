@@ -49,6 +49,15 @@
             </span>
             {% endif %}
 
+            <!-- Cleanup pill -->
+            {% if status.cleanup_results %}
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-surface-raised border border-border rounded-sm text-[11px]">
+                <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]"></span>
+                <span class="font-semibold text-white/80">Cleanup</span>
+                <span class="text-[10px] text-white/25">{{ status.cleanup_results.flagged_count }} flagged</span>
+            </span>
+            {% endif %}
+
             <span class="hidden sm:block w-px h-4 bg-border-focus shrink-0"></span>
 
             <!-- Stats -->

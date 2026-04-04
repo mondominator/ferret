@@ -33,6 +33,9 @@ class AppState:
         self.backfill_complete = False
         self.backfill_count = 0
 
+        # Cleanup results
+        self.cleanup_results: Optional[dict] = None
+
         # Recent logs (keep last 1000 lines)
         self.recent_logs = deque(maxlen=1000)
 
@@ -103,6 +106,11 @@ class AppState:
         with self._lock:
             self.manual_sync_requested = False
 
+    def set_cleanup_results(self, results: dict):
+        """Store cleanup scan results."""
+        with self._lock:
+            self.cleanup_results = results
+
     def get_status(self) -> dict:
         """Get current application status."""
         with self._lock:
@@ -125,6 +133,7 @@ class AppState:
                 "total_users": self.total_users,
                 "backfill_complete": self.backfill_complete,
                 "backfill_count": self.backfill_count,
+                "cleanup_results": self.cleanup_results,
             }
 
 

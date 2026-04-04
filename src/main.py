@@ -23,6 +23,7 @@ from src.watched import (
 )
 from src.black_white import setup_black_white_lists
 from src.connection import generate_server_connections
+from src.cleanup import run_cleanup
 
 
 # Track if logger has been configured when preserving handlers
@@ -356,6 +357,16 @@ def main_loop(env) -> None:
                     else:
                         logger.error(f"Sync failed between {s1_name} and {s2_name} after 3 attempts: {e}")
                         logger.warning("Continuing with remaining server pairs...")
+
+    # Run cleanup scan after sync completes
+    try:
+        if web_dashboard_enabled:
+            app_state.set_syncing(True, "Running cleanup scan")
+        cleanup_results = run_cleanup(servers, env)
+        if cleanup_results is not None and web_dashboard_enabled:
+            app_state.set_cleanup_results(cleanup_results.to_dict())
+    except Exception as e:
+        logger.error(f"Cleanup scan failed: {e}")
 
     # Mark sync as complete
     if web_dashboard_enabled:

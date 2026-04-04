@@ -1,0 +1,70 @@
+<div id="cleanup-section" hx-get="/api/cleanup" hx-trigger="every 10s" hx-swap="outerHTML">
+    {% if cleanup_enabled %}
+    <div class="space-y-3">
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] text-white/25 uppercase tracking-widest font-semibold">Cleanup</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-500 border border-amber-700">Dry Run</span>
+        </div>
+
+        {% if status.cleanup_results %}
+        {% set cr = status.cleanup_results %}
+
+        <!-- Summary stats -->
+        <div class="flex gap-4 py-1">
+            <div class="text-center">
+                <span class="block text-lg font-bold text-white tabular-nums">{{ cr.flagged_count }}</span>
+                <span class="block text-[10px] text-white/20 uppercase tracking-widest">flagged</span>
+            </div>
+            <div class="text-center">
+                <span class="block text-lg font-bold text-white tabular-nums">{{ cr.flagged_shows_count }}</span>
+                <span class="block text-[10px] text-white/20 uppercase tracking-widest">shows</span>
+            </div>
+            <div class="text-center">
+                <span class="block text-lg font-bold text-white tabular-nums">{{ cr.flagged_movies_count }}</span>
+                <span class="block text-[10px] text-white/20 uppercase tracking-widest">movies</span>
+            </div>
+            <div class="text-center">
+                <span class="block text-lg font-bold text-white tabular-nums">{{ cr.total_scanned }}</span>
+                <span class="block text-[10px] text-white/20 uppercase tracking-widest">scanned</span>
+            </div>
+        </div>
+
+        {% if cr.flagged_items %}
+        <!-- Flagged items list -->
+        <div class="max-h-[35vh] overflow-y-auto rounded-sm bg-[#050505] border border-white/5">
+            <div class="divide-y divide-white/5">
+                {% for item in cr.flagged_items %}
+                <div class="flex items-center justify-between px-3 py-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide
+                            {% if item.media_type == 'show' %}bg-purple-500/10 text-purple-400 border border-purple-500/20
+                            {% else %}bg-blue-500/10 text-blue-400 border border-blue-500/20{% endif %}">
+                            {{ item.media_type }}
+                        </span>
+                        <span class="text-sm text-white/80 truncate">{{ item.title }}</span>
+                        {% if item.library_name %}
+                        <span class="text-[10px] text-white/15">{{ item.library_name }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 ml-2">
+                        {% if item.days_since_watched is not none %}
+                        <span class="text-[11px] text-white/30 tabular-nums">{{ item.days_since_watched }}d ago</span>
+                        <span class="text-[10px] text-white/15">{{ item.last_watched_server }}</span>
+                        {% else %}
+                        <span class="text-[11px] text-red-400/60">Never watched</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <p class="text-white/20 text-sm text-center py-4">No items flagged for cleanup</p>
+        {% endif %}
+
+        {% else %}
+        <p class="text-white/20 text-sm text-center py-4">Waiting for first cleanup scan...</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
