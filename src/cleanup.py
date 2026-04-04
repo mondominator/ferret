@@ -293,10 +293,10 @@ class CleanupEngine:
                 if library.type not in ["movie", "show"]:
                     continue
 
-                # Build a merged watch dict across all users
                 watch_data = {}  # title -> {watched, last_viewed, is_continuing}
 
-                for user_plex in all_user_servers:
+                for user_idx, user_plex in enumerate(all_user_servers):
+                    is_owner = user_idx == 0
                     try:
                         user_lib = user_plex.library.section(library.title)
                     except Exception:
@@ -320,13 +320,25 @@ class CleanupEngine:
                             if key not in watch_data:
                                 is_cont = getattr(show, 'status', '') in ['Continuing', 'Returning Series']
                                 watch_data[key] = {"title": key, "media_type": "show", "watched": False, "last_viewed": None, "is_continuing": is_cont}
-                            for episode in show.episodes():
-                                if episode.isWatched:
+
+                            # For owner: full episode scan (most accurate)
+                            # For shared users: show-level lastViewedAt (fast)
+                            if is_owner:
+                                for episode in show.episodes():
+                                    if episode.isWatched:
+                                        watch_data[key]["watched"] = True
+                                        if episode.lastViewedAt:
+                                            ep_date = episode.lastViewedAt.replace(tzinfo=timezone.utc)
+                                            if watch_data[key]["last_viewed"] is None or ep_date > watch_data[key]["last_viewed"]:
+                                                watch_data[key]["last_viewed"] = ep_date
+                            else:
+                                # Fast path: show-level check for shared users
+                                if show.isWatched or show.viewCount:
                                     watch_data[key]["watched"] = True
-                                    if episode.lastViewedAt:
-                                        ep_date = episode.lastViewedAt.replace(tzinfo=timezone.utc)
-                                        if watch_data[key]["last_viewed"] is None or ep_date > watch_data[key]["last_viewed"]:
-                                            watch_data[key]["last_viewed"] = ep_date
+                                if show.lastViewedAt:
+                                    vdate = show.lastViewedAt.replace(tzinfo=timezone.utc)
+                                    if watch_data[key]["last_viewed"] is None or vdate > watch_data[key]["last_viewed"]:
+                                        watch_data[key]["last_viewed"] = vdate
 
                 media[library.title] = list(watch_data.values())
         except Exception as e:
