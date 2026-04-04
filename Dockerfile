@@ -60,7 +60,8 @@ RUN --mount=type=cache,target=/tmp/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 RUN chmod +x *.sh && \
-	dos2unix *.sh
+	dos2unix *.sh && \
+	mkdir -p /app/data && chmod 777 /app/data
 
 # Set default values to prevent issues
 ENV DRYRUN="True"
