@@ -125,6 +125,11 @@ ENV SONARR_API_KEY=""
 ENV RADARR_BASEURL=""
 ENV RADARR_API_KEY=""
 
+# Telegram notifications
+ENV TELEGRAM_ENABLED="False"
+ENV TELEGRAM_BOT_TOKEN=""
+ENV TELEGRAM_CHAT_ID=""
+
 # Expose web dashboard port
 EXPOSE 8080
 
