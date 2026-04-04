@@ -296,7 +296,7 @@ class CleanupResults:
             "flagged_shows_count": len(self.flagged_shows),
             "flagged_movies_count": len(self.flagged_movies),
             "total_scanned": self.total_scanned,
-            "scan_time": self.scan_time.isoformat(),
+            "scan_time": self.scan_time.astimezone().strftime("%b %d, %I:%M %p").lstrip('0'),
             "dry_run": self.dry_run,
             "deleting_soon_count": self.deleting_soon_count,
             "protected_count": self.protected_count,

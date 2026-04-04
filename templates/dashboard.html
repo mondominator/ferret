@@ -9,62 +9,14 @@
     <!-- ============================================================ -->
     <!-- TOP: Compact status strip                                     -->
     <!-- ============================================================ -->
-    <div class="flex items-center justify-between flex-wrap gap-2 px-1">
-        <div class="flex items-center gap-4 flex-wrap"
-             id="sync-status"
-             hx-get="/api/status/badge"
-             hx-trigger="every 3s"
-             hx-swap="innerHTML">
-            {% if status.is_syncing %}
-            <div class="flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div>
-                <span class="text-sm text-amber-500 font-medium">Syncing</span>
-            </div>
-            {% elif status.last_sync_time %}
-            <div class="flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
-                <span class="text-sm text-white/40">Synced {{ status.last_sync_time }}</span>
-            </div>
-            {% else %}
-            <div class="flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full bg-white/20"></div>
-                <span class="text-sm text-white/30">No syncs yet</span>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="flex items-center gap-3">
-            {% if status.servers %}
-            <span class="text-xs text-white/30 tabular-nums">{{ status.servers|length }} server{{ 's' if status.servers|length != 1 else '' }}</span>
-            {% endif %}
-            {% if status.total_users > 0 %}
-            <span class="text-xs text-white/30 tabular-nums">{{ status.total_users }} user{{ 's' if status.total_users != 1 else '' }}</span>
-            {% endif %}
-
-            <button hx-post="/api/sync/trigger" hx-swap="none"
-                {% if status.is_syncing %}disabled{% endif %}
-                class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-[11px] font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer disabled:cursor-not-allowed active:scale-95">
-                Sync Now
-            </button>
-        </div>
+    <div id="status-strip" hx-get="/api/status/strip" hx-trigger="every 5s" hx-swap="innerHTML">
+        {% include "partials/status_strip.html" %}
     </div>
-
-    <!-- Server dots (inline, compact) -->
-    {% if status.servers %}
-    <div class="flex items-center gap-3 px-1 flex-wrap">
-        {% for name, server in status.servers.items() %}
-        <div class="flex items-center gap-1.5">
-            <div class="w-1.5 h-1.5 rounded-full {% if server.status == 'connected' %}bg-teal-500{% else %}bg-red-500{% endif %}"></div>
-            <span class="text-[11px] text-white/50">{{ name }}</span>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
     <!-- ============================================================ -->
     <!-- MAIN: Cleanup dashboard                                       -->
     <!-- ============================================================ -->
-    <div id="cleanup-section" hx-get="/api/cleanup" hx-trigger="cleanup-refresh from:body" hx-swap="innerHTML">
+    <div id="cleanup-section" hx-get="/api/cleanup" hx-trigger="cleanup-refresh from:body, every 30s" hx-swap="innerHTML">
         {% include "partials/cleanup_card.html" %}
     </div>
 

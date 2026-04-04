@@ -167,6 +167,15 @@ async def get_status_badge(request: Request):
     return HTMLResponse(html)
 
 
+@app.get("/api/status/strip", response_class=HTMLResponse)
+async def get_status_strip(request: Request):
+    """Get full status strip HTML for htmx polling."""
+    return templates.TemplateResponse(
+        "partials/status_strip.html",
+        {"request": request, "status": app_state.get_status()}
+    )
+
+
 
 @app.get("/api/cleanup", response_class=HTMLResponse)
 async def get_cleanup_card(request: Request):
