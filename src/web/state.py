@@ -71,6 +71,19 @@ class AppState:
                 "last_check": datetime.now()
             }
 
+    def reset_servers(self):
+        """
+        Clear the in-memory server registry. Called at the start of each
+        connection cycle so stale entries from previous syncs don't pile up
+        on the dashboard. Without this, a single transient failure registers
+        a phantom entry under a URL-based key (e.g.
+        "Jellyfin (http://host:9096)") that's never overwritten on success
+        because successful connections register under the server's friendly
+        name instead.
+        """
+        with self._lock:
+            self.servers = {}
+
     def update_stats(self, items_synced: int = 0, users: int = 0):
         """Update sync statistics."""
         with self._lock:
