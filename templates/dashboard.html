@@ -16,7 +16,7 @@
     <!-- ============================================================ -->
     <!-- MAIN: Cleanup dashboard                                       -->
     <!-- ============================================================ -->
-    <div id="cleanup-section" hx-get="/api/cleanup" hx-trigger="cleanup-refresh from:body, every 30s" hx-swap="innerHTML">
+    <div id="cleanup-section" hx-get="/api/cleanup" hx-trigger="cleanup-refresh from:body" hx-swap="innerHTML">
         {% include "partials/cleanup_card.html" %}
     </div>
 
