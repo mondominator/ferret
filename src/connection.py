@@ -89,6 +89,15 @@ def jellyfin_emby_server_connection(
 
 
 def generate_server_connections(env) -> list[Plex | Jellyfin | Emby]:
+    # Clear the dashboard's server registry at the start of every cycle. The
+    # add_server() calls below will repopulate it with the current state, so
+    # any phantom entry left over from a previous sync (e.g. a one-time
+    # failure that registered under a URL-based key while the recovery
+    # registers under the server's friendly name) gets dropped instead of
+    # lingering forever as a red "disconnected" tile.
+    if WEB_DASHBOARD_ENABLED:
+        app_state.reset_servers()
+
     servers: list[Plex | Jellyfin | Emby] = []
 
     plex_baseurl_str: str | None = get_env_value(env, "PLEX_BASEURL", None)
