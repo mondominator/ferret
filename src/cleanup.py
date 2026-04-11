@@ -1105,14 +1105,15 @@ def run_cleanup(servers: list, env) -> CleanupResults | None:
                     reason = ""
                     if item.days_since_watched is not None:
                         reason = f"not watched in {item.days_since_watched}d"
-                    elif item.days_in_library is not None:
-                        reason = f"in library {item.days_in_library}d, never watched"
                     elif item.seerr_requested:
-                        reason = "requested but never watched"
+                        reason = "requested, never watched"
+                    elif item.days_in_library is not None:
+                        reason = f"in library {item.days_in_library}d"
                     newly_flagged.append({
                         "title": item.title,
                         "media_type": item.media_type,
                         "reason": reason,
+                        "rule": item.rule_name,
                     })
             if newly_flagged:
                 notifier.notify_newly_flagged(newly_flagged)
