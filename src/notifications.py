@@ -41,37 +41,65 @@ class TelegramNotifier:
             return False
 
     def notify_newly_flagged(self, items: list[dict]) -> None:
-        """Notify about newly flagged items."""
+        """Notify about newly flagged items.
+
+        Previous version said "X new items flagged for cleanup" and ended with
+        "30 days until deletion" which was alarming and misleading — a catalog
+        item that's been in the library for 12 years is not "new", and telling
+        the user it'll be deleted in 30 days when they haven't even reviewed it
+        is the wrong tone.
+
+        New version:
+        - Says "match cleanup rules" not "flagged for cleanup"
+        - Groups by rule name so the user knows WHY each item appeared
+        - Ends with "Review on the Ferret dashboard" instead of a deletion threat
+        - If the batch is huge (>30), shows a summary count per rule instead
+          of a long item list that Telegram truncates anyway
+        """
         if not self.enabled or not items:
             return
 
         count = len(items)
-        shows = [i for i in items if i.get("media_type") == "show"]
-        movies = [i for i in items if i.get("media_type") == "movie"]
 
-        lines = [f"<b>🔍 {count} new item{'s' if count != 1 else ''} flagged for cleanup</b>"]
+        # Group by rule
+        by_rule: dict[str, list[dict]] = {}
+        for item in items:
+            rule = item.get("rule", "Unknown rule")
+            by_rule.setdefault(rule, []).append(item)
+
+        # For large batches, just summarise per rule — a 200-item list
+        # is unreadable in a Telegram message anyway.
+        if count > 30:
+            lines = [f"<b>📋 {count} items match cleanup rules</b>"]
+            lines.append("")
+            for rule, rule_items in sorted(by_rule.items()):
+                shows = sum(1 for i in rule_items if i.get("media_type") == "show")
+                movies = sum(1 for i in rule_items if i.get("media_type") == "movie")
+                parts = []
+                if shows:
+                    parts.append(f"{shows} show{'s' if shows != 1 else ''}")
+                if movies:
+                    parts.append(f"{movies} movie{'s' if movies != 1 else ''}")
+                lines.append(f"  <b>{rule}</b> — {', '.join(parts)}")
+            lines.append("")
+            lines.append("Review on the Ferret dashboard to exclude or confirm.")
+            self._send("\n".join(lines))
+            return
+
+        # For smaller batches, list items grouped by rule
+        lines = [f"<b>📋 {count} item{'s' if count != 1 else ''} match cleanup rules</b>"]
         lines.append("")
 
-        if shows:
-            lines.append(f"<b>Shows ({len(shows)})</b>")
-            for item in shows[:10]:
+        for rule, rule_items in sorted(by_rule.items()):
+            lines.append(f"<b>{rule} ({len(rule_items)})</b>")
+            for item in rule_items[:10]:
                 reason = item.get("reason", "")
                 lines.append(f"  • {item['title']}" + (f" — <i>{reason}</i>" if reason else ""))
-            if len(shows) > 10:
-                lines.append(f"  <i>...and {len(shows) - 10} more</i>")
+            if len(rule_items) > 10:
+                lines.append(f"  <i>...and {len(rule_items) - 10} more</i>")
+            lines.append("")
 
-        if movies:
-            if shows:
-                lines.append("")
-            lines.append(f"<b>Movies ({len(movies)})</b>")
-            for item in movies[:10]:
-                reason = item.get("reason", "")
-                lines.append(f"  • {item['title']}" + (f" — <i>{reason}</i>" if reason else ""))
-            if len(movies) > 10:
-                lines.append(f"  <i>...and {len(movies) - 10} more</i>")
-
-        lines.append("")
-        lines.append("30 days until deletion. Exclude from the dashboard if needed.")
+        lines.append("Review on the Ferret dashboard to exclude or confirm.")
 
         self._send("\n".join(lines))
 
@@ -81,7 +109,7 @@ class TelegramNotifier:
             return
 
         count = len(items)
-        lines = [f"<b>⚠️ {count} item{'s' if count != 1 else ''} will be deleted within 7 days</b>"]
+        lines = [f"<b>⚠️ {count} item{'s' if count != 1 else ''} scheduled for deletion within 7 days</b>"]
         lines.append("")
 
         for item in items[:15]:
@@ -91,7 +119,7 @@ class TelegramNotifier:
             lines.append(f"  <i>...and {len(items) - 15} more</i>")
 
         lines.append("")
-        lines.append("Exclude from the dashboard to prevent deletion.")
+        lines.append("Exclude from the Ferret dashboard to prevent deletion.")
 
         self._send("\n".join(lines))
 
