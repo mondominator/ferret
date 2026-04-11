@@ -118,12 +118,12 @@ class AppState:
             self.cleanup_results = results
 
     def set_cleanup_state(self, cleanup_state):
-        """Store reference to the CleanupState object for exclusions."""
+        """Store reference to the CleanupDB object for exclusions."""
         with self._lock:
             self._cleanup_state = cleanup_state
 
     def get_cleanup_state(self):
-        """Get the CleanupState object."""
+        """Get the CleanupDB object."""
         with self._lock:
             return self._cleanup_state
 

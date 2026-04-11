@@ -16,7 +16,7 @@ import requests
 from src.plex import Plex
 from src.jellyfin_emby import JellyfinEmby
 from src.functions import str_to_bool, get_env_value
-from src.cleanup_state import CleanupState
+from src.cleanup_db import CleanupDB
 
 
 # ---------------------------------------------------------------------------
@@ -398,15 +398,15 @@ class CleanupEngine:
         self._sonarr_series_cache: list[dict] | None = None
         self._radarr_movies_cache: list[dict] | None = None
 
-        # Persistent state
-        state_path = get_env_value(env, "CLEANUP_STATE_FILE", "/app/data/cleanup_state.json")
-        self.cleanup_state = CleanupState(state_path)
+        # Persistent state (SQLite — replaces the old cleanup_state.json)
+        db_path = get_env_value(env, "CLEANUP_DB_PATH", "/app/data/cleanup.db")
+        self.cleanup_state = CleanupDB(db_path)
 
-        # Merge persistent exclusions from state file into the exclude set
+        # Merge persistent exclusions into the exclude set
         persistent_exclusions = self.cleanup_state.get_exclusions()
         if persistent_exclusions:
             self.exclude_exact |= persistent_exclusions
-            logger.info(f"CLEANUP: {len(persistent_exclusions)} persistent exclusions loaded from state file")
+            logger.info(f"CLEANUP: {len(persistent_exclusions)} persistent exclusions loaded from database")
 
         total_excludes = len(self.exclude_exact) + len(self.exclude_prefixes)
         if total_excludes:
@@ -998,8 +998,13 @@ class CleanupEngine:
 
             logger.info(f"CLEANUP: Rule '{rule.name}' flagged {rule_flagged} items")
 
-        # Step 4: Update persistent state and add countdown to each item
-        self.cleanup_state.update(results.flagged_items)
+        # Step 4: Update persistent state and add countdown to each item.
+        # update() returns the list of title_keys that are genuinely new
+        # (never previously flagged in any scan), which we pass to the
+        # Telegram notifier below instead of the old JSON-diff approach.
+        self._newly_flagged_keys = set(
+            self.cleanup_state.update(results.flagged_items)
+        )
 
         for item in results.flagged_items:
             item.days_until_deletion = self.cleanup_state.days_until_deletion(
@@ -1087,10 +1092,14 @@ def run_cleanup(servers: list, env) -> CleanupResults | None:
     rules = build_cleanup_rules(env)
     engine = CleanupEngine(servers=servers, env=env, dry_run=dry_run)
 
-    # Snapshot previously flagged titles to detect newly flagged items
-    prev_flagged = set(engine.cleanup_state.get_all().keys())
-
     results = engine.scan(rules)
+
+    # Record scan in the DB for history/trends
+    engine.cleanup_state.record_scan(
+        items_scanned=results.total_scanned,
+        flagged_count=len(results.flagged_items),
+        deleted_count=len(results.deleted_items),
+    )
 
     # Send Telegram notifications
     try:
@@ -1098,10 +1107,13 @@ def run_cleanup(servers: list, env) -> CleanupResults | None:
         notifier = TelegramNotifier(env)
 
         if notifier.enabled:
-            # Newly flagged items (not in previous state)
+            # Newly flagged items — engine.update() already computed these
+            # via the DB (items that have NEVER appeared in flagged_items
+            # across ANY scan, not just "new since last scan").
+            newly_flagged_keys = engine._newly_flagged_keys
             newly_flagged = []
             for item in results.flagged_items:
-                if item.title.lower() not in prev_flagged:
+                if item.title.lower() in newly_flagged_keys:
                     reason = ""
                     if item.days_since_watched is not None:
                         reason = f"not watched in {item.days_since_watched}d"
