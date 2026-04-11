@@ -198,7 +198,7 @@ async def get_cleanup_card(request: Request):
 async def exclude_cleanup_item(request: Request):
     """
     Exclude a title from cleanup. Stores the exclusion in the persistent
-    cleanup_state.json file (survives container restarts) and removes
+    cleanup database and removes
     it from the current in-memory results.
     """
     try:
@@ -208,7 +208,7 @@ async def exclude_cleanup_item(request: Request):
         if not title:
             return {"success": False, "message": "No title provided"}
 
-        # 1. Add to persistent exclusions in cleanup_state.json
+        # 1. Add to persistent exclusions in cleanup database
         cleanup_state = app_state.get_cleanup_state()
         if cleanup_state:
             cleanup_state.add_exclusion(title)
