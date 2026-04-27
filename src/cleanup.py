@@ -1139,11 +1139,11 @@ def run_cleanup(servers: list, env) -> CleanupResults | None:
                 for item in results.flagged_items
                 if item.days_until_deletion is not None
                 and 0 < item.days_until_deletion <= 7
-                and self.cleanup_state.warning_unsent(item.title)
+                and engine.cleanup_state.warning_unsent(item.title)
             ]
             if warning_items:
                 notifier.notify_deletion_warning(warning_items)
-                self.cleanup_state.mark_warnings_sent([w["title"] for w in warning_items])
+                engine.cleanup_state.mark_warnings_sent([w["title"] for w in warning_items])
 
             # Deleted items
             if results.deleted_items:
