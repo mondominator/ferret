@@ -36,11 +36,17 @@ CREATE TABLE IF NOT EXISTS library_items (
 -- first_flagged). Items that stop matching are deleted so the table
 -- always reflects the latest scan.
 CREATE TABLE IF NOT EXISTS flagged_items (
-    title_key     TEXT PRIMARY KEY,
-    title_display TEXT NOT NULL,
-    media_type    TEXT,
-    rule_name     TEXT NOT NULL,
-    first_flagged DATE NOT NULL DEFAULT (DATE('now')),
+    title_key                  TEXT PRIMARY KEY,
+    title_display              TEXT NOT NULL,
+    media_type                 TEXT,
+    rule_name                  TEXT NOT NULL,
+    first_flagged              DATE NOT NULL DEFAULT (DATE('now')),
+    -- The day we last sent a "scheduled for deletion within 7 days"
+    -- Telegram alert for this item. Stays NULL until the alert fires
+    -- so the warning only goes out once per item per cleanup cycle —
+    -- prevents the daily spam where the countdown ticks 7→6→5→4 and
+    -- each tick re-pings the user.
+    deletion_warning_sent_at   DATE,
     FOREIGN KEY (title_key) REFERENCES library_items(title_key)
 );
 
@@ -95,9 +101,27 @@ class CleanupDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(_SCHEMA)
+        self._apply_additive_migrations()
         self._conn.commit()
 
         self._try_migrate_json()
+
+    def _apply_additive_migrations(self):
+        """Idempotent ALTER TABLEs for columns added after the v1 schema.
+
+        Older deployments shipped without these — we add them here on
+        startup so we don't need a separate migration tool. Each block
+        checks the column doesn't already exist before adding so it's
+        safe to run on every boot.
+        """
+        cols = {
+            row["name"]
+            for row in self._conn.execute("PRAGMA table_info(flagged_items)").fetchall()
+        }
+        if "deletion_warning_sent_at" not in cols:
+            self._conn.execute(
+                "ALTER TABLE flagged_items ADD COLUMN deletion_warning_sent_at DATE"
+            )
 
     # ------------------------------------------------------------------
     # Migration from cleanup_state.json
@@ -291,6 +315,30 @@ class CleanupDB:
             (cutoff,),
         ).fetchall()
         return [row["title_key"] for row in rows]
+
+    # ------------------------------------------------------------------
+    # Telegram warning de-dup — only ping once per item per flag cycle
+    # ------------------------------------------------------------------
+
+    def warning_unsent(self, title: str) -> bool:
+        """True if we have not yet sent the deletion-warning ping for
+        this item during the current flagged window."""
+        row = self._conn.execute(
+            "SELECT deletion_warning_sent_at FROM flagged_items WHERE title_key = ?",
+            (title.lower(),),
+        ).fetchone()
+        return bool(row) and row["deletion_warning_sent_at"] is None
+
+    def mark_warnings_sent(self, titles: list[str]) -> None:
+        """Stamp today's date on each item — they won't re-ping until
+        they leave the flagged set and get re-flagged later."""
+        today = date.today().isoformat()
+        for title in titles:
+            self._conn.execute(
+                "UPDATE flagged_items SET deletion_warning_sent_at = ? WHERE title_key = ?",
+                (today, title.lower()),
+            )
+        self._conn.commit()
 
     # ------------------------------------------------------------------
     # Exclusions

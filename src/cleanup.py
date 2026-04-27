@@ -1130,14 +1130,20 @@ def run_cleanup(servers: list, env) -> CleanupResults | None:
             if newly_flagged:
                 notifier.notify_newly_flagged(newly_flagged)
 
-            # 7-day warning
+            # 7-day warning — only ping once per item per flagged
+            # window. Without this gate every cleanup run re-pings the
+            # same items as their countdown decrements 7→6→5→…, which
+            # spammed the user daily.
             warning_items = [
                 {"title": item.title, "days_until_deletion": item.days_until_deletion}
                 for item in results.flagged_items
-                if item.days_until_deletion is not None and item.days_until_deletion <= 7 and item.days_until_deletion > 0
+                if item.days_until_deletion is not None
+                and 0 < item.days_until_deletion <= 7
+                and self.cleanup_state.warning_unsent(item.title)
             ]
             if warning_items:
                 notifier.notify_deletion_warning(warning_items)
+                self.cleanup_state.mark_warnings_sent([w["title"] for w in warning_items])
 
             # Deleted items
             if results.deleted_items:
