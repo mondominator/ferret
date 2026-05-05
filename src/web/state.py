@@ -26,6 +26,12 @@ class AppState:
         # Server status
         self.servers = {}  # {server_name: {type, status, version}}
 
+        # Number of servers that failed to connect during the most recent
+        # connection cycle. Used by the main loop to decide whether to retry
+        # connections at a faster cadence (e.g. after Unraid reboot, when
+        # Plex/Jellyfin may still be in startup maintenance).
+        self.connection_failures = 0
+
         # Statistics
         self.total_items_synced = 0
         self.total_users = 0
@@ -83,6 +89,16 @@ class AppState:
         """
         with self._lock:
             self.servers = {}
+            self.connection_failures = 0
+
+    def increment_connection_failures(self):
+        """Record that a server failed to connect during the current cycle."""
+        with self._lock:
+            self.connection_failures += 1
+
+    def get_connection_failures(self) -> int:
+        with self._lock:
+            return self.connection_failures
 
     def update_stats(self, items_synced: int = 0, users: int = 0):
         """Update sync statistics."""
