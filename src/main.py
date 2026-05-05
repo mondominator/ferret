@@ -435,13 +435,42 @@ def main() -> None:
 
             # Check for manual sync requests from web dashboard
             if web_dashboard_enabled:
-                # Sleep in small intervals to check for manual sync requests
+                # Sleep in small intervals to check for manual sync requests.
+                # If any servers failed to connect this cycle (e.g. they were
+                # still in startup maintenance after an Unraid reboot), retry
+                # connections every CONNECTION_RETRY_INTERVAL seconds and
+                # trigger an immediate sync if they all come back.
+                CONNECTION_RETRY_INTERVAL = 60
                 elapsed = 0
+                last_retry_at = 0
                 while elapsed < sleep_duration:
                     if app_state.manual_sync_requested:
                         logger.info("Web: Manual sync request detected, starting sync now")
                         app_state.clear_manual_sync_request()
                         break
+
+                    if (
+                        app_state.get_connection_failures() > 0
+                        and (elapsed - last_retry_at) >= CONNECTION_RETRY_INTERVAL
+                    ):
+                        last_retry_at = elapsed
+                        prior_failures = app_state.get_connection_failures()
+                        logger.info(
+                            f"Retrying {prior_failures} failed server connection(s)..."
+                        )
+                        try:
+                            generate_server_connections(env)
+                        except Exception as e:
+                            logger.error(f"Reconnect attempt failed: {e}")
+                        if (
+                            app_state.get_connection_failures() == 0
+                            and prior_failures > 0
+                        ):
+                            logger.info(
+                                "All servers reconnected; triggering immediate sync"
+                            )
+                            app_state.request_manual_sync()
+
                     sleep(1)
                     elapsed += 1
             else:
